@@ -16,21 +16,36 @@ permissions:
   id-token: write
 
 jobs:
-  build:
+  unit-test-and-scan:
     steps:
-      - name: Say hello
-        uses: docker://golang:1.20.3-alpine3.17
-        shell: sh
-        run: |
-          echo "hello world"
-
-      - id: build
-        name: Build using the shared action
+      - name: Get source code
+        uses: cloudbees-io/checkout@v1
+      - id: unit-test-and-scan
+        name: Run Unit test
         uses: calculi-corp/cb-internal-shared-actions/build@v3
         with:
           run-unit-test: "true"
           go-binary-build: "false"
-          go-binary-name: ${{ env.application_name }}
-          unit-test-percent: "26"
+          kaniko-build: "false"
+          trivy-scan-container: "false"
+          unit-test-percent: "81"
+          
+build:
+    outputs:
+      tag: ${{ steps.build-container.outputs.tag-digest }}
+    steps:
+      - name: Get source code
+        uses: cloudbees-io/checkout@v1
 
-  
+      - name: Setup git credentials
+        uses: cloudbees-io/configure-git-global-credentials@v1
+
+      - id: build-go-binary
+        name: Build Go binary
+        uses: docker://golang:latest
+        kind: build
+        run: |
+          GOOS=linux GOARCH=amd64 go build -a -tags netgo -ldflags '-w -extldflags \"-static\"' -o reports-service --buildvcs=0
+        env:
+          CGO_ENABLED: "0"
+
