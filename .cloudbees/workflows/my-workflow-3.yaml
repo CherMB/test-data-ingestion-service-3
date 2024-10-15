@@ -6,7 +6,9 @@ on:
   push:
     branches:
       - '**'
-
+permissions:
+  scm-token-own: read
+  scm-token-org: read
 jobs:
   unit-test-and-scan:
     steps:
