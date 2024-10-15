@@ -30,22 +30,22 @@ jobs:
           trivy-scan-container: "false"
           unit-test-percent: "81"
           
-build:
-    outputs:
-      tag: ${{ steps.build-container.outputs.tag-digest }}
-    steps:
-      - name: Get source code
-        uses: cloudbees-io/checkout@v1
-
-      - name: Setup git credentials
-        uses: cloudbees-io/configure-git-global-credentials@v1
-
-      - id: build-go-binary
-        name: Build Go binary
-        uses: docker://golang:latest
-        kind: build
-        run: |
-          GOOS=linux GOARCH=amd64 go build -a -tags netgo -ldflags '-w -extldflags \"-static\"' -o reports-service --buildvcs=0
-        env:
-          CGO_ENABLED: "0"
-
+  build:
+      outputs:
+        tag: ${{ steps.build-container.outputs.tag-digest }}
+      steps:
+        - name: Get source code
+          uses: cloudbees-io/checkout@v1
+  
+        - name: Setup git credentials
+          uses: cloudbees-io/configure-git-global-credentials@v1
+  
+        - id: build-go-binary
+          name: Build Go binary
+          uses: docker://golang:latest
+          kind: build
+          run: |
+            GOOS=linux GOARCH=amd64 go build -a -tags netgo -ldflags '-w -extldflags \"-static\"' -o reports-service --buildvcs=0
+          env:
+            CGO_ENABLED: "0"
+  
