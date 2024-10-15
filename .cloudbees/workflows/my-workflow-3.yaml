@@ -7,6 +7,14 @@ on:
     branches:
       - '**'
 
+env:
+  application_name: test-data-ingestion-2
+
+permissions:
+  scm-token-own: read
+  scm-token-org: read
+  id-token: write
+
 jobs:
   build:
     steps:
@@ -15,3 +23,21 @@ jobs:
         shell: sh
         run: |
           echo "hello world"
+
+      - id: build
+        name: Build using the shared action
+        uses: calculi-corp/cb-internal-shared-actions/build@v3
+        with:
+          run-unit-test: "true"
+          go-binary-build: "true"
+          go-binary-name: ${{ env.application_name }}
+          kaniko-build: "true"
+          dockerfile-path: "Dockerfile-new"
+          registry-url: ${{ vars.staging_image_registry }}
+          registry-image-name: ${{ env.application_name }}
+          registry-type: "ECR"
+          oidc-iam-role: ${{ vars.oidc_staging_iam_role }}
+          trivy-scan-container: "false"
+          unit-test-percent: "26"
+
+  
