@@ -1,0 +1,36 @@
+apiVersion: automation.cloudbees.io/v1alpha1
+kind: workflow
+name: My workflow
+
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  unit-test-and-scan:
+    steps:
+      - name: Get source code
+        uses: cloudbees-io/checkout@v1
+      - id: unit-test-and-scan
+        name: Run Unit test
+        uses: calculi-corp/cb-internal-shared-actions/build@v3
+        with:
+          run-unit-test: "true"
+          go-binary-build: "false"
+          kaniko-build: "false"
+          trivy-scan-container: "false"
+          unit-test-percent: "81"
+          sonarqube-threshold-critical: 0
+          sonarqube-threshold-very-high: 2
+          sonarqube-threshold-high: 1
+          sonarqube-threshold-medium: 1
+          sonarqube-threshold-low: 0
+  build:
+    steps:
+      - name: Say hello
+        uses: docker://golang:1.20.3-alpine3.17
+        shell: sh
+        run: |
+          echo "hello world"
+
