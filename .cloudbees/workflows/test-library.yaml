@@ -1,0 +1,34 @@
+apiVersion: automation.cloudbees.io/v1alpha1
+kind: workflow
+name: Test Library
+
+on:
+  push:
+    branches:
+    - '**'
+
+permissions:
+  scm-token-own: read
+  scm-token-org: read
+jobs:
+  run-unit-test:
+    steps:
+      - name: Get source code
+        uses: cloudbees-io/checkout@v1
+      - id: check-gomod
+        name: Check currency of go.mod
+        uses: calculi-corp/gomod-currency-check-action/check@main
+      - id: git-credentials
+        name: Setup git credentials
+        uses: cloudbees-io/configure-git-global-credentials@v1
+      - id: unit-test-scan
+        name: Run Unit tests and static code analysis
+        uses: calculi-corp/cb-internal-shared-actions/go-test@go-test/v1
+        with:
+          min-coverage: "80"
+          exclusions: '**/*_mocks.go,**/zz_generated.*.go,**/*.pb.go,**/pb/*,**/*_test.go,**/test*/**,**/mock/**,**/testdata/*,**/fake/*,vendor/**,**/*main.go,**/isolation/**'
+      - id: run-bundled-sonar-scan
+        name: Run sonarqube bundled action from platform
+        uses: cloudbees-io/sonarqube-bundled-sast-scan-code@v1
+        with:
+          language: "LANGUAGE_GO"
