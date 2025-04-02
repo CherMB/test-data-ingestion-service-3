@@ -1,19 +1,24 @@
 apiVersion: automation.cloudbees.io/v1alpha1
 kind: workflow
-name: My workflow
-
+name: DORA-workflow
 on:
   push:
     branches:
       - '**'
-
 jobs:
   build:
     steps:
       - name: Say hello
-        kind: build
         uses: docker://golang:1.20.3-alpine3.17
         shell: sh
         run: |
           echo "hello world"
-          
+  deploy-east-1:
+    environment: preprod-us-east-1
+    steps:
+      - name: Say hello
+        uses: docker://golang:1.20.3-alpine3.17
+        kind: deploy
+        shell: sh
+        run: |
+          echo "hello world"
