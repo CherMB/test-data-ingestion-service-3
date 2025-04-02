@@ -1,25 +1,27 @@
 apiVersion: automation.cloudbees.io/v1alpha1
 kind: workflow
-name: DORA-workflow
+name: My workflow
+
 on:
   push:
     branches:
       - '**'
+
 jobs:
   build:
     steps:
       - name: Say hello
+        kind: build
         uses: docker://golang:1.20.3-alpine3.17
         shell: sh
         run: |
           echo "hello world"
-  deploy-qa:
-    environment: qa
-    steps:
-      - name: Say hello
-        uses: docker://golang:1.20.3-alpine3.17
-        kind: deploy
-        shell: sh
+          
+      - id: build-go-binary
+        name: Build Go binary
+        kind: build
+        uses: docker://golang:latest
         run: |
-          echo "hello world" 
- 
+          GOOS=linux GOARCH=amd64 go build -a -tags netgo -ldflags '-w -extldflags "-static"' -o myapp --buildvcs=0
+        env:
+          CGO_ENABLED: "0"
