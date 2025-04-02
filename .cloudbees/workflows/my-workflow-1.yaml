@@ -13,7 +13,7 @@ jobs:
         shell: sh
         run: |
           echo "hello world"
-  deploy-east-1:
+  deploy-qa:
     environment: qa
     steps:
       - name: Say hello
