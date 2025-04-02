@@ -17,11 +17,3 @@ jobs:
         run: |
           echo "hello world"
           
-      - id: build-go-binary
-        name: Build Go binary
-        kind: build
-        uses: docker://golang:latest
-        run: |
-          GOOS=linux GOARCH=amd64 go build -a -tags netgo -ldflags '-w -extldflags "-static"' -o myapp --buildvcs=0
-        env:
-          CGO_ENABLED: "0"
