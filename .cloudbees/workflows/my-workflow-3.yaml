@@ -30,7 +30,7 @@ jobs:
           trivy-scan-container: "false"
           unit-test-percent: "81"
           
-  build:
+  build: 
       outputs:
         tag: ${{ steps.build-container.outputs.tag-digest }}
       steps:
