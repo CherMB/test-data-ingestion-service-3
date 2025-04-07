@@ -14,12 +14,12 @@ jobs:
         shell: sh
         run: |
           echo "hello world"
-  # deploy-east-1:
-  #   environment: preprod-us-east-1
-  #   steps:
-  #     - name: Say hello
-  #       uses: docker://golang:1.20.3-alpine3.17
-  #       kind: deploy
-  #       shell: sh
-  #       run: |
-  #         echo "hello world"
+  deploy-qa:
+    environment: qa
+    steps:
+      - name: Say hello
+        uses: docker://golang:1.20.3-alpine3.17
+        kind: deploy
+        shell: sh
+        run: |
+          echo "hello world"
