@@ -1,0 +1,13 @@
+{
+    "widget": {
+        "id": "ci01",
+        "title": "Cjoc controllers",
+        "description": "Controlles information for cjoc.",
+        "data": {
+            "function_name": "Insight CJOC Controllers"
+        }
+    },
+    "functions": [
+        "Insight CJOC Controllers"
+    ]
+}

@@ -1,0 +1,105 @@
+{
+  "definition": {
+    "id": "pull-requests-trend-compare",
+    "title": "Pull Requests",
+    "sub_title": "Comparison",
+    "breadCrumbTitle": "{{.orgName}}",
+    "post_process_function_name": "pull requests component comparison",
+    "column_details": {
+      "column1": "Name",
+      "column2": "Count"
+    },
+    "header_field": "totalValue",
+    "compare_common_section_details": {
+      "type": 2,
+      "show_legends": false,
+      "is_component_compare": true,
+      "orientation": 0,
+      "append_unit": " ",
+      "tooltip_formatter": 1,
+      "color_scheme": [
+        {
+          "color0": "#0A7146",
+          "color1": "#00CC75"
+        },
+        {
+          "color0": "#ECAA06",
+          "color1": "#FFDB4C"
+        },
+        {
+          "color0": "#A016C7",
+          "color1": "#DA72FF"
+        },
+        {
+          "color0": "#BC191D",
+          "color1": "#FB6E72"
+        }
+      ],
+      "light_color_scheme": [
+        {
+          "color0": "#0B9D60",
+          "color1": "#7ACAA9"
+        },
+        {
+          "color0": "#F0BE22",
+          "color1": "#FCE465"
+        },
+        {
+          "color0": "#B92FE0",
+          "color1": "#CD97E0"
+        },
+        {
+          "color0": "#F29492",
+          "color1": "#E73B37"
+        }
+      ]
+    }
+  },
+  "queries": {
+    "pullRequestsChart": {
+      "alias": "pull_requests_review_data",
+      "query": {
+        "size": 0,
+        "query": {
+          "bool": {
+            "filter": [
+              {
+                "range": {
+                  "pr_created_time": {
+                    "gte": "{{.startDate}}",
+                    "lte": "{{.endDate}}",
+                    "format": "yyyy-MM-dd HH:mm:ss",
+                    "time_zone": "{{.timeZone}}"
+                  }
+                }
+              },
+              {
+                "term": {
+                  "org_id": "{{.orgId}}"
+                }
+              }
+            ]
+          }
+        },
+        "aggs": {
+          "pull_requests_component_comparison": {
+            "terms": {
+              "field": "component_id",
+              "size": 10000
+            },
+            "aggs": {
+              "pullrequests": {
+                "scripted_metric": {
+                  "init_script": "state.statusMap = [:];",
+                  "map_script": "def map = state.statusMap;def key = doc['org_id'].value + '_' + doc['repository_name'].value + '_' + doc['component_id'].value + '_' + doc['pull_request_id'].value+'_' + (doc.timestamp.getValue().toEpochSecond() * 1000);def v = ['pull_request_id': doc.pull_request_id.value,'provider': doc.provider.value, 'component_id': doc.component_id.value, 'component_name': doc.component_name.value, 'review_status': doc.review_status.value, 'org_id': doc.org_id.value, 'pr_created_time': doc.pr_created_time.value, 'component_name': doc.component_name.value, 'repository_name': doc.repository_name.value, 'timestamp': doc.timestamp.value];if (doc['source_branch'].size() != 0) {v['source_branch'] = doc.source_branch.value;}if (doc['target_branch'].size() != 0) {v['target_branch'] = doc.target_branch.value;}map.put(key, v);",
+                  "combine_script": "return state.statusMap;",
+                  "reduce_script": "def tmpMap=[:],resultMap=new HashMap(),pullrequests=new ArrayList();def outputMap=new HashMap();outputMap.put('APPROVED',0);outputMap.put('OPEN',0);outputMap.put('CHANGES_REQUESTED',0);outputMap.put('REJECTED',0);for(agg in states){if(agg!=null){for(key in agg.keySet()){def record=agg.get(key);def devkey=record.org_id+'_'+record.provider+'_'+record.pull_request_id+'_'+record.component_id+'_'+record.repository_name;if(tmpMap.containsKey(devkey)){def mapRecord=tmpMap.get(devkey);if(mapRecord.timestamp.getMillis()<record.timestamp.getMillis()){tmpMap.put(devkey,record);}}else{tmpMap.put(devkey,record);}}}}if(tmpMap.size()>0){for(uniqueKey in tmpMap.keySet()){def valueMap=tmpMap.get(uniqueKey);def revStatus=valueMap.review_status;if(revStatus=='APPROVED'){def count=outputMap.get('APPROVED');count=count+1;outputMap.put('APPROVED',count);}else if(revStatus=='OPEN'){def count=outputMap.get('OPEN');count=count+1;outputMap.put('OPEN',count);}else if(revStatus=='CHANGES_REQUESTED'){def count=outputMap.get('CHANGES_REQUESTED');count=count+1;outputMap.put('CHANGES_REQUESTED',count);}else if(revStatus=='REJECTED'){def count=outputMap.get('REJECTED');count=count+1;outputMap.put('REJECTED',count);}}}return outputMap;"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

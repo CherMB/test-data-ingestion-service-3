@@ -1,0 +1,113 @@
+{
+  "widget": {
+    "id": "so10",
+    "title": "Open findings distribution by category",
+    "description": "",
+    "enable_components_compare": false,
+    "components_compare_id": "open-findings-distribution-by-category-compare",
+    "message": "",
+    "content": [
+      {
+        "header": [],
+        "section": [
+          {
+            "title": "",
+            "info": null,
+            "type": 10,
+            "column_type": "open-findings-distribution-by-category",
+            "category_type": "",
+            "orientation": 0,
+            "data_type": 0,
+            "show_legends": true,
+            "color_scheme": null,
+            "light_color_scheme": null,
+            "legends_data": [
+              {
+                "title": "Very high",
+                "color": "#EA4F54"
+              },
+              {
+                "title": "High",
+                "color": "#FE9D33"
+              },
+              {
+                "title": "Medium",
+                "color": "#FCE44E"
+              },
+              {
+                "title": "Low",
+                "color": "#738E9D"
+              }
+            ],
+            "query_key": "",
+            "spec_key": "openFindingsDistributionByCategorySpec",
+            "drill_down": null,
+            "enable_post_transformation_processing": true,
+            "post_process_function_name": "open findings distribution by category",
+            "show_pagination": false
+          }
+        ],
+        "footer": []
+      }
+    ],
+    "pagination": false
+  },
+  "queries": {
+    "openFindingsDistributionByCategory": {
+      "alias": "cb_security_findings",
+      "query": {
+        "size": 0,
+        "query": {
+          "bool": {
+            "filter": [
+              {
+                "term": {
+                  "org_id": "{{.orgId}}"
+                }
+              },
+              {
+                "term": {
+                  "profile_group_type": "component_branch"
+                }
+              },
+              {
+                "terms": {
+                  "remediation_status": ["OPEN", "IN_PROGRESS"]
+                }
+              }
+            ],
+            "must_not": {
+              "terms": {
+                "category": ["BUG", "CODE_SMELL", "HOTSPOT", "SECURITY_HOTSPOT"]
+              }
+            }
+          }
+        },
+        "aggs": {
+          "category": {
+            "terms": {
+              "field": "category",
+              "size": 100
+            },
+            "aggs": {
+              "severity": {
+                "terms": {
+                  "field": "severity",
+                  "size": 10
+                },
+                "aggs": {
+                  "tracking_id": {
+                    "terms": {
+                      "script": "doc['finding_code'].value + '_' + doc['tracking_id'].value",
+                      "size": 10000
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

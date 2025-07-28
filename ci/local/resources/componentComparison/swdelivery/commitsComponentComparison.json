@@ -1,0 +1,104 @@
+{
+    "definition": {
+        "id": "run-initiating-commits-compare",
+        "title": "Run-intiating commits",
+        "sub_title": "Comparison",
+        "breadCrumbTitle": "{{.orgName}}",
+        "post_process_function_name": "commits component comparison",
+        "column_details": {
+            "column1": "Name",
+            "column2": "Count"
+        },
+        "header_field": "totalValue",
+        "compare_common_section_details": {}
+    },
+    "queries": {
+        "commitsChart": {
+            "alias": "automation_run_status",
+            "query": {
+                "_source": false,
+                "size": 0,
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {
+                                "range": {
+                                    "status_timestamp": {
+                                        "gte": "{{.startDate}}",
+                                        "lte": "{{.endDate}}",
+                                        "format": "yyyy-MM-dd HH:mm:ss",
+                                        "time_zone": "{{.timeZone}}"
+                                    }
+                                }
+                            },
+                            {
+                                "term": {
+                                    "org_id": "{{.orgId}}"
+                                }
+                            },
+                            {
+                                "term": {
+                                    "job_id": ""
+                                }
+                            },
+                            {
+                                "term": {
+                                    "step_id": ""
+                                }
+                            },
+                            {
+                                "term": {
+                                    "data_type": 2
+                                }
+                            },
+                            {
+                                "bool": {
+                                    "should": [
+                                        {
+                                            "term": {
+                                                "status": "SUCCEEDED"
+                                            }
+                                        },
+                                        {
+                                            "term": {
+                                                "status": "FAILED"
+                                            }
+                                        },
+                                        {
+                                            "term": {
+                                                "status": "TIMED_OUT"
+                                            }
+                                        },
+                                        {
+                                            "term": {
+                                                "status": "ABORTED"
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                "aggs": {
+                    "commits_component_comparison": {
+                        "terms": {
+                            "field": "component_id",
+                            "size": 10000
+                        },
+                        "aggs": {
+                            "automation_run": {
+                                "scripted_metric": {
+                                    "init_script": "state.data_map=[:];",
+                                    "map_script": "def map = state.data_map;def key = doc.org_id+'_'+doc.automation_id.value + '_' + doc.run_id.value+'_'+doc.status.value;def v = ['run_id': doc.run_id.value, 'status': doc.status.value,'automation_id':doc.automation_id.value];map.put(key, v);",
+                                    "combine_script": "return state.data_map;",
+                                    "reduce_script": "def resultMap = new HashMap();def tmpMap = new HashMap();def dataMap = new HashMap();for (response in states) {if (response != null) {for (key in response.keySet()) {tmpMap.put(key, response.get(key));}}}for (key in tmpMap.keySet()) {def record = tmpMap.get(key);def runKey = record.automation_id+'_'+record.run_id;if (dataMap.containsKey(runKey)) {def count = dataMap.get(runKey);dataMap.put(runKey, count + 1);} else {dataMap.put(runKey, 1);}}resultMap.put('data', dataMap);resultMap.put('totalCount', dataMap.size());return resultMap;"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,112 @@
+{
+    "widget": {
+        "id": "d5",
+        "title": "Deployment Frequency & Lead Time trend",
+        "description": "This visualizes the rate of deployments alongside the time taken from commit to deployment, offering insights to optimize the development pipeline.",
+        "content": [
+            {
+                "section": [
+                    {
+                        "type": 12,
+                        "show_legends": true,
+                        "color_scheme": [
+                            {
+                                "color0": "#5BD8F3",
+                                "color1": "#018698",
+                                "color2": "#4DD0E1"
+                            },
+                            {
+                                "color0": "#E73CC1",
+                                "color1": "#F185E6",
+                                "color2": "#F48FB1"
+                            }
+                        ],
+                        "light_color_scheme": [
+                            {
+                                "color0": "#5CD8F3",
+                                "color1": "#23B8CC",
+                                "color2": "#0097A7"
+                            },
+                            {
+                                "color0": "#F06292",
+                                "color1": "#FFC1D6",
+                                "color2": "#E91E63"
+                            }
+                        ],
+                        "post_process_function_name": "deployment frequency and lead time",
+                        "spec_key": "frequencyAndLeadTimeTrendSpec"
+                    }
+                ]
+            }
+        ]
+    },
+    "queries": {
+        "frequencyAndLeadTimeTrend": {
+            "alias": "deploy_data",
+            "query": {
+                "size": 0,
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {
+                                "range": {
+                                    "status_timestamp": {
+                                        "gte": "{{.startDate}}",
+                                        "lte": "{{.endDate}}",
+                                        "format": "yyyy-MM-dd HH:mm:ss",
+                                        "time_zone": "{{.timeZone}}"
+                                    }
+                                }
+                            },
+                            {
+                                "term": {
+                                    "org_id": "{{.orgId}}"
+                                }
+                            },
+                            {
+                                "term": {
+                                    "data_type": 2
+                                }
+                            },
+                            {
+                                "term": {
+                                    "status": "SUCCEEDED"
+                                }
+                            },
+                            {
+                                "term": {
+                                    "target_env": "{{.targetEnv}}"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "aggs": {
+                    "deploy_buckets": {
+                        "date_histogram": {
+                            "field": "status_timestamp",
+                            "calendar_interval": "{{.aggrBy}}",
+                            "min_doc_count": 0,
+                            "format": "yyyy-MM-dd",
+                            "time_zone": "{{.timeZone}}",
+                            "extended_bounds": {
+                                "min": "{{.dateHistogramMin}}",
+                                "max": "{{.dateHistogramMax}}"
+                            }
+                        },
+                        "aggs": {
+                            "deployments": {
+                                "scripted_metric": {
+                                    "combine_script": "return state.data_map;",
+                                    "init_script": "state.data_map=[:];",
+                                    "map_script": "def map = state.data_map;def key = doc.component_id.value + '_' + doc.run_id.value + '_' + doc.job_id.value + '_' + doc.step_id.value + '_' + doc.target_env.value + '_' + doc.status.value;def v = ['run_id':doc.run_id.value, 'job_id':doc.job_id.value, 'step_id':doc.step_id.value, 'target_env':doc.target_env.value, 'step_kind':doc.step_kind.value, 'start_time':doc.start_time.value, 'completed_time':doc.completed_time.value, 'status_timestamp':doc.status_timestamp.value, 'status':doc.status.value, 'component_id':doc.component_id.value, 'automation_id':doc.automation_id.value, 'duration':doc.duration.value, 'run_start_time':doc['run_start_time'].size() != 0? doc.run_start_time.value:0];map.put(key, v);",
+                                    "reduce_script": "def allDataMap = new HashMap(), resultMap = new HashMap(), jobStepDedupMap = new HashMap() ;for (response in states){if (response != null){for (key in response.keySet()){def record = response.get(key);allDataMap.put(key, record);}}}for (key in allDataMap.keySet()){def currRecord = allDataMap.get(key);if (currRecord.step_id == ''){jobStepDedupMap.put(key, currRecord);} else{def jobLevelRecordKey = currRecord.component_id + '_' + currRecord.run_id + '_' + currRecord.job_id + '_' + '' + '_' + currRecord.target_env + '_' + currRecord.status;if (!allDataMap.containsKey(jobLevelRecordKey)){jobStepDedupMap.put(key, currRecord);}}}def size = '' + jobStepDedupMap.size(), totalDuration = 0.0;def deployments = Double.parseDouble(size);for (key in jobStepDedupMap.keySet()){def record = jobStepDedupMap.get(key);if (record.run_start_time > 0){totalDuration += (record.status_timestamp.getMillis() - record.run_start_time);} else if (record.duration > 0){totalDuration += record.duration;}}resultMap.put('deployments', deployments);resultMap.put('totalDuration', totalDuration);resultMap.put('average', Math.round((totalDuration / deployments * 100) / 100.0));return resultMap;"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,125 @@
+{
+  "definition": {
+    "id": "commit-trends-compare",
+    "title": "Commits",
+    "sub_title": "Comparison",
+    "breadCrumbTitle": "{{.orgName}}",
+    "post_process_function_name": "commit trends component comparison",
+    "column_details": {
+      "column1": "Name",
+      "column2": "Count"
+    },
+    "header_field": "totalValue",
+    "compare_common_section_details": {
+      "type": 2,
+      "show_legends": false,
+      "is_component_compare": true,
+      "orientation": 0,
+      "append_unit": " ",
+      "tooltip_formatter": 1,
+      "color_scheme": [
+        {
+          "color0": "#63A3E1",
+          "color1": "#0068CE",
+          "color2": "#00AEEF"
+        },
+        {
+          "color0": "#E499FF",
+          "color1": "#A90BD2",
+          "color2": "#DA72FF"
+        }
+      ],
+      "light_color_scheme": [
+        {
+          "color0": "#63A3E1",
+          "color1": "#0068CE",
+          "color2": "#0057B2"
+        },
+        {
+          "color0": "#E499FF",
+          "color1": "#A90BD2",
+          "color2": "#9C27B0"
+        }
+      ]
+    }
+  },
+  "queries": {
+    "commitsAndAverageChart": {
+      "alias": "commit_data",
+      "query": {
+        "_source": false,
+        "size": 0,
+        "query": {
+          "bool": {
+            "filter": [
+              {
+                "range": {
+                  "commit_timestamp": {
+                    "gte": "{{.startDate}}",
+                    "lte": "{{.endDate}}",
+                    "format": "yyyy-MM-dd HH:mm:ss",
+                    "time_zone": "{{.timeZone}}"
+                  }
+                }
+              },
+              {
+                "term": {
+                  "org_id": "{{.orgId}}"
+                }
+              },
+              {
+                "bool": {
+                  "must_not": {
+                    "term": {
+                      "author": "github-actions[bot]"
+                    }
+                  }
+                }
+              },
+              {
+                "bool": {
+                  "must_not": {
+                    "prefix": {
+                      "branch": {
+                        "value": "dependabot"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "aggs": {
+          "commits_trends_component_comparison": {
+            "terms": {
+              "field": "component_id",
+              "size": 10000
+            },
+            "aggs": {
+              "unique_authors": {
+                "cardinality": {
+                  "field": "author"
+                }
+              },
+              "commits_count": {
+                "cardinality": {
+                  "field": "commit_id"
+                }
+              },
+              "commits-per-auth": {
+                "bucket_script": {
+                  "buckets_path": {
+                    "uniqueauth": "unique_authors",
+                    "totalCommits": "commits_count"
+                  },
+                  "script": "params.totalCommits / params.uniqueauth"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

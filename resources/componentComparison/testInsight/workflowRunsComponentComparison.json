@@ -1,0 +1,170 @@
+{
+  "definition": {
+    "id": "test-insights-workflow-runs-compare",
+    "title": "Workflow runs",
+    "sub_title": "Comparison",
+    "breadCrumbTitle": "{{.orgName}}",
+    "post_process_function_name": "test suite workflow runs component comparison",
+    "column_details": {
+      "column1": "Name",
+      "column2": "Count / Status"
+    },
+    "header_field": "totalValue",
+    "compare_common_section_details": {
+      "type": 2,
+      "show_legends": false,
+      "is_component_compare": true,
+      "orientation": 0,
+      "append_unit": " ",
+      "tooltip_formatter": 1,
+      "color_scheme": [
+        {
+          "color0": "#ADFFD8",
+          "color1": "#17B268"
+        },
+        {
+          "color0": "#FFE6C1",
+          "color1": "#F2A414"
+        }
+      ],
+      "light_color_scheme": [
+        {
+          "color0": "#79CAA8",
+          "color1": "#0C9E61"
+        },
+        {
+          "color0": "#FFE6C1",
+          "color1": "#F2A414"
+        }
+      ]
+    }
+  },
+  "queries": {
+    "testSuiteRuns": {
+      "alias": "cb_test_suites",
+      "query": {
+        "size": 0,
+        "query": {
+          "bool": {
+            "filter": [
+              {
+                "range": {
+                  "timestamp": {
+                    "gte": "{{.startDate}}",
+                    "lte": "{{.endDate}}",
+                    "format": "yyyy-MM-dd HH:mm:ss",
+                    "time_zone": "{{.timeZone}}"
+                  }
+                }
+              },
+              {
+                "term": {
+                  "org_id": "{{.orgId}}"
+                }
+              }
+            ]
+          }
+        },
+        "aggs": {
+          "workflow_runs_component_comparison": {
+            "terms": {
+              "field": "component_id",
+              "size": 10000
+            },
+            "aggs": {
+              "component_activity": {
+                "scripted_metric": {
+                  "init_script": "state.data_map = [:];",
+                  "map_script": "def map=state.data_map;def key=doc.component_id.value+'_'+doc.automation_id.value+'_'+doc.run_id.value+'_'+doc.test_suite_name.value;def v=['org_id':doc.org_id.value,'component_id':doc.component_id.value,'automation_id':doc.automation_id.value,'branch_id':doc.branch_id.value,'run_id':doc.run_id.value,'test_suite_name':doc.test_suite_name.value];map.put(key,v);",
+                  "combine_script": "return state.data_map;",
+                  "reduce_script": "def resultMap=new HashMap();int count=0;def set=new HashSet();for(a in states){if(a!=null){for(i in a.keySet()){def record=a.get(i);def key=record.component_id+'_'+record.automation_id+'_'+record.run_id;if(!resultMap.containsKey(key)){set.add(record.get('run_id'));record.put('runs_ids',set);}}}}resultMap.put('runs',set.size());return resultMap;"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "automationRuns": {
+      "alias": "automation_run_status",
+      "query": {
+        "size": 0,
+        "query": {
+          "bool": {
+            "filter": [
+              {
+                "range": {
+                  "timestamp": {
+                    "gte": "{{.startDate}}",
+                    "lte": "{{.endDate}}",
+                    "format": "yyyy-MM-dd HH:mm:ss",
+                    "time_zone": "{{.timeZone}}"
+                  }
+                }
+              },
+              {
+                "term": {
+                  "org_id": "{{.orgId}}"
+                }
+              },
+              {
+                "term": {
+                  "job_id": ""
+                }
+              },
+              {
+                "term": {
+                  "step_id": ""
+                }
+              },
+              {
+                "bool": {
+                  "should": [
+                    {
+                      "term": {
+                        "status": "SUCCEEDED"
+                      }
+                    },
+                    {
+                      "term": {
+                        "status": "FAILED"
+                      }
+                    },
+                    {
+                      "term": {
+                        "status": "TIMED_OUT"
+                      }
+                    },
+                    {
+                      "term": {
+                        "status": "ABORTED"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "aggs": {
+          "workflow_runs_component_comparison": {
+            "terms": {
+              "field": "component_id",
+              "size": 10000
+            },
+            "aggs": {
+              "run_status": {
+                "scripted_metric": {
+                  "init_script": "state.data_map = [:];",
+                  "map_script": "def map=state.data_map;def key=doc.org_id+'_'+doc.automation_id.value+'_'+doc.run_id.value;def v=['org_id':doc.org_id.value,'component_id':doc.component_id.value,'automation_id':doc.automation_id.value,'run_id':doc.run_id.value,'status':doc.status.value];map.put(key,v);",
+                  "combine_script": "return state.data_map;",
+                  "reduce_script": "def resultMap=new HashMap();def set=new HashSet();for(a in states){if(a!=null){for(i in a.keySet()){def record=a.get(i);def key=record.org_id+'_'+record.automation_id+'_'+record.run_id;if(!resultMap.containsKey(key)){set.add(key);record.put('runs_ids',set);}}}}resultMap.put('runs',set.size());return resultMap;"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

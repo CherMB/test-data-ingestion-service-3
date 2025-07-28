@@ -1,0 +1,11 @@
+{
+    "widget": {
+        "id": "e9",
+        "title": "Deployment success rate",
+        "descripition": "Track successful and unsuccessful deployments in each environment over time.",
+        "enable_components_compare": false,
+        "components_compare_id": "deployment-success-rate-compare",
+        "pagination": true,
+        "content": []
+    }
+}

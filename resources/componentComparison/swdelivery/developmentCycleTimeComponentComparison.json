@@ -1,0 +1,106 @@
+{
+  "definition": {
+    "id": "development-cycle-compare",
+    "title": "Development cycle time",
+    "sub_title": "Comparison",
+    "breadCrumbTitle": "{{.orgName}}",
+    "post_process_function_name": "development cycle component comparison",
+    "column_details": {
+      "column1": "Name",
+      "column2": "Duration"
+    },
+    "header_field": "valueInMillis",
+    "compare_common_section_details": {
+      "type": 2,
+      "show_legends": false,
+      "is_component_compare": true,
+      "orientation": 0,
+      "append_unit": "%",
+      "tooltip_formatter": 1,
+      "color_scheme": [
+        {
+          "color0": "#7D83FF",
+          "color1": "#333BFA"
+        },
+        {
+          "color0": "#FD578F",
+          "color1": "#D02D64"
+        },
+        {
+          "color0": "#BA68C8",
+          "color1": "#A13DB3"
+        },
+        {
+          "color0": "#2CCAFF",
+          "color1": "#0090D4"
+        }
+      ],
+      "light_color_scheme": [
+        {
+          "color0": "#B1B5FF",
+          "color1": "#5F65FF"
+        },
+        {
+          "color0": "#FFD3AA",
+          "color1": "#E8A263"
+        },
+        {
+          "color0": "#DD8EF9",
+          "color1": "#C94EF0"
+        },
+        {
+          "color0": "#36B2FA",
+          "color1": "#0191D5"
+        }
+      ]
+    }
+  },
+  "queries": {
+    "developmentCycleChart": {
+      "alias": "dev_cycle_time_data",
+      "query": {
+        "_source": false,
+        "size": 0,
+        "query": {
+          "bool": {
+            "filter": [
+              {
+                "range": {
+                  "timestamp": {
+                    "gte": "{{.startDate}}",
+                    "lte": "{{.endDate}}",
+                    "format": "yyyy-MM-dd HH:mm:ss",
+                    "time_zone": "{{.timeZone}}"
+                  }
+                }
+              },
+              {
+                "term": {
+                  "org_id": "{{.orgId}}"
+                }
+              }
+            ]
+          }
+        },
+        "aggs": {
+          "development_cycle_time_component_comparison": {
+            "terms": {
+              "field": "component_id",
+              "size": 10000
+            },
+            "aggs": {
+              "developmentCycleTime": {
+                "scripted_metric": {
+                  "init_script": "state.data_map=[:];",
+                  "map_script": "def map=state.data_map;def codingTime=0;def reviewTime=0;def deployTime=0;def pickupTime=0;if(doc.containsKey('coding_time')){if(doc['coding_time']!=null){codingTime=doc['coding_time'].value}}if(doc.containsKey('review_time')){if(doc['review_time']!=null){reviewTime=doc['review_time'].value}}if(doc.containsKey('pickup_time')){if(doc['pickup_time']!=null){pickupTime=doc['pickup_time'].value}}if(doc.containsKey('deploy_time')){if(doc['deploy_time']!=null){deployTime=doc['deploy_time'].value}}def key=doc.pull_request_id.value+'_'+doc.component_name.value+'_'+doc.repository_name.value+'_'+(doc.timestamp.getValue().toEpochSecond()*1000);def v=['pull_request_id':doc.pull_request_id.value,'coding_time':codingTime,'review_time':reviewTime,'pickup_time':pickupTime,'deploy_time':deployTime,'timestamp':(doc.timestamp.getValue().toEpochSecond()*1000),'repository_name':doc.repository_name.value];map.put(key,v);",
+                  "combine_script": "return state.data_map;",
+                  "reduce_script": "def tmpMap=[:];def out=[:];def countMap=new HashMap();def metricsMap=new HashMap();def developerSet=new HashSet();DateTimeFormatter dateFormat=DateTimeFormatter.ofPattern('dd MMM');for(agg in states){if(agg!=null){for(key in agg.keySet()){def record=agg.get(key);def devkey=record.pull_request_id+record.repository_name;if(tmpMap.containsKey(devkey)){def mapRecord=tmpMap.get(devkey);if(mapRecord.timestamp<record.timestamp){tmpMap.put(devkey,record);}}else{tmpMap.put(devkey,record);}}}}def timeArray=['coding_time','pickup_time','review_time','deploy_time'];def timeArrayCount=['coding_time':0,'pickup_time':0,'review_time':0,'deploy_time':0];for(key in tmpMap.keySet()){def v=tmpMap.get(key);for(timeKey in timeArray){if(countMap.containsKey(timeKey)){def count=countMap.get(timeKey);count=count+v[timeKey];countMap.put(timeKey,count);}else{countMap.put(timeKey,v[timeKey]);}if(v[timeKey]>0){timeArrayCount[timeKey]=timeArrayCount[timeKey]+1;}}}for(timeKey in timeArray){def n=countMap.get(timeKey);def key=timeKey+'_in_millis';def countKey=timeKey+'_count';def valueKey=timeKey+'_value_in_millis';def outputInMillis=n*1000;def outputCount=timeArrayCount[timeKey];if(timeArrayCount[timeKey]>0){n=n/timeArrayCount[timeKey];}def duration=n*1000;def day=n/(24*3600);n=n%(24*3600);def hour=n/3600;n%=3600;def minutes=n/60;n%=60;def seconds=n;def result='';if(day>0){result=result+day+'d '}if(hour>0){if(result.length()>0){result=result+hour+'h '}else{result=result+hour+'h '}}if(minutes>0){if(result.length()>0){result=result+minutes+'m '}else{result=result+minutes+'m '}}metricsMap.put(timeKey,result);metricsMap.put(countKey,outputCount);metricsMap.put(valueKey,outputInMillis);metricsMap.put(key,duration);}return metricsMap;"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

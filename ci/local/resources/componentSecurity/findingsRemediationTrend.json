@@ -1,0 +1,103 @@
+{
+    "widget": {
+        "id": "so1",
+        "title": "Vulnerability findings remediation trend",
+        "description": "",
+        "enable_components_compare": false,
+        "components_compare_id": "",
+        "content": [
+            {
+                "section": [
+                    {
+                        "type": 1,
+                        "data_type": 0,
+                        "orientation": 0,
+                        "show_legends": true,
+                        "category_type": "labelLine",
+                        "color_scheme": [
+                            {
+                                "color0": "#C774D5",
+                                "color1": "#A340B4"
+                            },
+                            {
+                                "color0": "#02CA74",
+                                "color1": "#0B7649"
+                            },
+                            {
+                                "color0": "#FA6D71",
+                                "color1": "#D6272B"
+                            }
+                        ],
+                        "light_color_scheme": [
+                            {
+                                "color0": "#C774D5",
+                                "color1": "#A340B4"
+                            },
+                            {
+                                "color0": "#02CA74",
+                                "color1": "#0B7649"
+                            },
+                            {
+                                "color0": "#FA6D71",
+                                "color1": "#D6272B"
+                            }
+                        ],
+                        "post_process_function_name": "findings remediation trend",
+                        "spec_key": "findingsRemediationTrendSpec",
+                        "enable_post_transformation_processing": false
+                    }
+                ]
+            }
+        ]
+    },
+    "queries": {
+        "findingsRemediationTrend": {
+            "alias": "cb_security_findings_remediation_trend",
+            "query": {
+                "size": 0,
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {
+                                "term": {
+                                    "org_id": "{{.orgId}}"
+                                }
+                            },
+                            {
+                                "term": {
+                                    "profile_group_type": "component_branch"
+                                }
+                            }
+                        ],
+                        "must_not": {
+                            "terms": {
+                                "category": [
+                                    "BUG",
+                                    "CODE_SMELL",
+                                    "HOTSPOT",
+                                    "SECURITY_HOTSPOT"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "aggs": {
+                    "findings_remediation_trend": {
+                        "scripted_metric": {
+                            "params": {
+                                "startDate": "{{.dateHistogramMin}}",
+                                "endDate": "{{.dateHistogramMax}}",
+                                "aggrBy": "{{.aggrBy}}",
+                                "timeZone": "{{.timeZone}}"
+                            },
+                            "init_script": "state.findingsMap = [:];",
+                            "map_script": "def map = state.findingsMap;def key = doc.org_id.value + '_' + doc.profile_group_id.value + '_' + doc.profile_group_type.value + '_' + doc.finding_code.value + '_' + doc.tracking_id.value + '_' + doc.remediation_key.value + '_' + doc.remediation_status.value + '_' + doc.tool_id.value + '_' + doc['sla_breach_time'].getValue().toEpochSecond();long timestampEpochMillis = doc['timestamp'].getValue().toEpochSecond() * 1000;def v = ['timestamp': timestampEpochMillis, 'resolution_date': doc['resolution_date'].size() == 0 ? null : doc['resolution_date'].getValue().toEpochSecond() * 1000, 'sla_breach_time': doc['sla_breach_time'].getValue().toEpochSecond() * 1000, 'remediation_status': doc.remediation_status.value, 'finding_key': doc.org_id.value + '_' + doc.profile_group_id.value + '_' + doc.profile_group_type.value + '_' + doc.finding_code.value + '_' + doc.tracking_id.value + '_' + doc.remediation_key.value];map.put(key, v);",
+                            "combine_script": "return state.findingsMap;",
+                            "reduce_script": "TreeMap getDateBuckets(LocalDate startDate, LocalDate endDate, String aggrBy){TreeMap dates = new TreeMap();if (aggrBy.equals('day')){long days = ChronoUnit.DAYS.between(startDate, endDate);for (long i = 0; i <= days; i++){LocalDate date = startDate.plusDays(i);dates.put(date.toString(), new HashMap())}} else if (aggrBy.equals('month')){def prevDate = startDate;LocalDate firstDayOfMonth = startDate.with(TemporalAdjusters.firstDayOfMonth());if (startDate.isAfter(firstDayOfMonth)){firstDayOfMonth = firstDayOfMonth.plusMonths(1)}while (firstDayOfMonth.compareTo(endDate) <= 0){def curDate = firstDayOfMonth;prevDate = curDate;dates.put(firstDayOfMonth.toString(), new HashMap());firstDayOfMonth = firstDayOfMonth.plusMonths(1)}dates.put(endDate.toString(), new HashMap())}return dates}def formatterISO = DateTimeFormatter.ISO_LOCAL_DATE;LocalDate stDt = LocalDate.parse(params.startDate, formatterISO);LocalDate endDt = LocalDate.parse(params.endDate, formatterISO);def dateInfoMap = getDateBuckets(stDt, endDt, params.aggrBy);def allFindingsMap = [:];int bucketCount = 0;for (a in states){if (a != null){for (i in a.keySet()){def record = a.get(i);def key = record.finding_key;if (allFindingsMap.containsKey(key) && allFindingsMap.get(key) != null){TreeMap timestampMap = allFindingsMap.get(key);timestampMap.put(record.timestamp, record);allFindingsMap.put(key, timestampMap)} else{TreeMap timestampMap = new TreeMap(Collections.reverseOrder());timestampMap.put(record.timestamp, record);allFindingsMap.put(key, timestampMap)}}}}for (date in dateInfoMap.keySet()){bucketCount++;LocalDate bucketDate = LocalDate.parse(date, formatterISO);ZonedDateTime zonedBucketDate = bucketDate.atStartOfDay(ZoneId.of(params.timeZone));Instant zonedBucketDateInstant = zonedBucketDate.toInstant();long bucketDateEpochMillis = zonedBucketDateInstant.toEpochMilli();if (params.aggrBy == 'day'){long oneDayInMillis = 86400000;bucketDateEpochMillis = bucketDateEpochMillis + oneDayInMillis;} if (bucketCount == dateInfoMap.size()){bucketDateEpochMillis = System.currentTimeMillis();}def remediationMap = dateInfoMap.get(date);remediationMap.put('Open', 0);remediationMap.put('BreachedSLA', 0);remediationMap.put('ClosedWithinSLA', 0);for (finding in allFindingsMap.keySet()){TreeMap timestampMap = allFindingsMap.get(finding);HashMap record = null;for (tstamp in timestampMap.keySet()){def currRecord = timestampMap.get(tstamp);if (currRecord.timestamp < bucketDateEpochMillis){record = currRecord;break}}if (record != null){if (record.remediation_status == 'OPEN' || record.remediation_status == 'IN_PROGRESS'){def openCount = remediationMap.get('Open');openCount++;remediationMap.put('Open', openCount);if (bucketDateEpochMillis > record.sla_breach_time){def breachedCount = remediationMap.get('BreachedSLA');breachedCount++;remediationMap.put('BreachedSLA', breachedCount)}} else if (record.remediation_status == 'RESOLVED'){if (record.resolution_date != null && record.resolution_date < record.sla_breach_time){def closedWithinSLACount = remediationMap.get('ClosedWithinSLA');closedWithinSLACount++;remediationMap.put('ClosedWithinSLA', closedWithinSLACount)}}}dateInfoMap.put(date, remediationMap)}}return dateInfoMap;"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

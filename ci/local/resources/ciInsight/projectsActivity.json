@@ -1,0 +1,13 @@
+{
+    "widget": {
+        "id": "ci7",
+        "title": "Projects activity",
+        "description": "Projects activity for ci insights tool.",
+        "data": {
+            "function_name": "Insight Projects Activity Widget"
+        }
+    },
+    "functions": [
+        "Insight Projects Activity Widget"
+    ]
+}

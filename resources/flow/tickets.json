@@ -1,0 +1,63 @@
+{
+    "widget": {
+        "id": "f3",
+        "title": "Tickets",
+        "description": "",
+        "content": [
+            {
+                "header": [
+                    {
+                        "title": "Total Tickets",
+                        "description": "Total Tickets",
+                        "function_name": "mockHeader1"
+                    }
+                ],
+                "section": [
+                    {
+                        "type": 4,
+                        "show_legends": false,
+                        "color_scheme": [
+                            {
+                                "color0": "#9FB6C1",
+                                "color1": "#577688"
+                            }
+                        ],
+                        "function_name": "mockContent1"
+                    }
+                ]
+            }
+        ]
+    },
+    "functions": [
+        "mockHeader1",
+        "mockContent1"
+    ],
+    "mockdata": {
+        "mockHeader1": {
+            "value": 145
+        },
+        "mockContent1": [
+            {
+                "data": [
+                    {
+                        "x": "Feature",
+                        "y": 65
+                    },
+                    {
+                        "x": "Tech debt",
+                        "y": 45
+                    },
+                    {
+                        "x": "Defect",
+                        "y": 32
+                    },
+                    {
+                        "x": "Risk",
+                        "y": 13
+                    }
+                ],
+                "id": "Tickets"
+            }
+        ]
+    }
+}

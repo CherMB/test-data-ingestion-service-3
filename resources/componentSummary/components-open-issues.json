@@ -1,0 +1,81 @@
+{
+    "widget": {
+        "id": "cs8",
+        "title": "Open issues",
+        "description": "",
+        "content": [
+            {
+                "header": [
+                    {
+                        "title": "Total issues",
+                        "description": "",
+                        "function_name": "Component Open Issues Header",
+                        "spec_key": "TOTAL",
+                        "past_duration_query_key": "",
+                        "type": "",
+                        "drill_down": null
+                    },
+                    {
+                        "title": "Very high",
+                        "description": "",
+                        "function_name": "Component Open Issues Header",
+                        "spec_key": "VERY_HIGH",
+                        "past_duration_query_key": "",
+                        "type": "",
+                        "drill_down": null
+                    },
+                    {
+                        "title": "High",
+                        "description": "",
+                        "function_name": "Component Open Issues Header",
+                        "spec_key": "HIGH",
+                        "past_duration_query_key": "",
+                        "type": "",
+                        "drill_down": null
+                    },
+                    {
+                        "title": "Medium",
+                        "description": "",
+                        "function_name": "Component Open Issues Header",
+                        "spec_key": "MEDIUM",
+                        "past_duration_query_key": "",
+                        "type": "",
+                        "drill_down": null
+                    },
+                    {
+                        "title": "Low",
+                        "description": "",
+                        "function_name": "Component Open Issues Header",
+                        "spec_key": "LOW",
+                        "past_duration_query_key": "",
+                        "type": "",
+                        "drill_down": null
+                    }
+                ],
+                "section": [
+                    {
+                        "type": 14,
+                        "show_legends": false,
+                        "column_type": "openIssues",
+                        "show_pagination": true,
+                        "color_scheme": null,
+                        "queryKey": "",
+                        "specKey": "",
+                        "title": "",
+                        "info": null,
+                        "data_type": 0,
+                        "function_name":"Open Issue Section",
+                        "category_type": "",
+                        "drill_down": null
+                    }
+                ],
+                "footer": []
+            }
+        ],
+        "pagination": false
+    },
+    "functions": [
+        "Component Open Issues Header",
+        "Open Issue Section"
+    ]
+}

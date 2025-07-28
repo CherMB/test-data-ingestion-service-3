@@ -1,0 +1,46 @@
+{
+  "definition": {
+      "id": "test-insights-workflows-compare",
+      "title": "Workflows",
+      "sub_title": "Comparison",
+      "breadCrumbTitle": "{{.orgName}}",
+      "post_process_function_name": "test workflow component comparison",
+      "function_name": "test workflow component comparison data",
+      "column_details": {
+          "column1": "Name",
+          "column2": "Count / Status"
+      },
+      "header_field": "totalValue",
+      "compare_common_section_details": {
+          "type": 2,
+          "show_legends": false,
+          "is_component_compare": true,
+          "orientation": 0,
+          "append_unit": " ",
+          "tooltip_formatter": 1,
+          "color_scheme": [
+              {
+                  "color0": "#ADFFD8",
+                  "color1": "#17B268"
+              },
+              {
+                  "color0": "#FFE6C1",
+                  "color1": "#F2A414"
+              }
+          ],
+          "light_color_scheme": [
+              {
+                  "color0": "#79CAA8",
+                  "color1": "#0C9E61"
+              },
+              {
+                  "color0": "#FFE6C1",
+                  "color1": "#F2A414"
+              }
+          ]
+      }
+  },
+  "functions": [
+      "test workflow component comparison data"
+  ]
+}

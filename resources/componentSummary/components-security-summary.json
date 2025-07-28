@@ -1,0 +1,12 @@
+{
+    "widget": {
+        "id": "sc1",
+        "title": "Security summary",
+        "description": "",
+        "content": [
+        ],
+        "section": [
+        ],
+        "pagination": false
+    }
+}

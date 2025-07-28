@@ -1,0 +1,70 @@
+{
+    "definition": {
+        "id": "mttr-compare",
+        "title": "Mean time to recovery",
+        "sub_title": "Comparison",
+        "breadCrumbTitle": "{{.orgName}}",
+        "post_process_function_name": "mean time to recovery component comparison",
+        "column_details": {
+            "column1": "Name",
+            "column2": "Duration"
+        },
+        "header_field": "valueInMillis",
+        "compare_common_section_details": {
+            "append_unit": " ",
+            "tooltip_formatter": 2
+        }
+    },
+    "queries": {
+        "mttrHeader": {
+            "alias": "deploy_data",
+            "query": {
+                "size": 0,
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {
+                                "range": {
+                                    "status_timestamp": {
+                                        "gte": "{{.startDate}}",
+                                        "lte": "{{.endDate}}",
+                                        "format": "yyyy-MM-dd HH:mm:ss",
+                                        "time_zone": "{{.timeZone}}"
+                                    }
+                                }
+                            },
+                            {
+                                "term": {
+                                    "org_id": "{{.orgId}}"
+                                }
+                            },
+                            {
+                                "term": {
+                                    "target_env": "{{.targetEnv}}"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "aggs": {
+                    "mttr_component_comparison": {
+                        "terms": {
+                            "field": "component_id",
+                            "size": 10000
+                        },
+                        "aggs": {
+                            "deployments": {
+                                "scripted_metric": {
+                                    "combine_script": "return state.data_map;",
+                                    "init_script": "state.data_map=[:];",
+                                    "map_script": "def map = state.data_map,runStartTime=0;def key = doc.component_id.value + '_' + doc.run_id.value + '_'+doc.run_number.value + '_' + doc.job_id.value + '_' + doc.step_id.value + '_' + doc.target_env.value + '_' + doc.status.value;def v = ['run_id': doc.run_id.value,'run_number': doc.run_number.value, 'job_id': doc.job_id.value, 'step_id': doc.step_id.value, 'target_env': doc.target_env.value, 'step_kind': doc.step_kind.value,  'status_timestamp': doc.status_timestamp.value, 'status': doc.status.value, 'component_id': doc.component_id.value,'automation_id':doc.automation_id.value,'workflow_name':doc.workflow_name.value,'component_name':doc.component_name.value];if (doc['run_start_time'].size() != 0) {runStartTime=doc.run_start_time.value;}v['run_start_time']=runStartTime;map.put(key, v);",
+                                    "reduce_script": "def allDataMap=[:],componentMap=new HashMap();def recoveredMap=new HashMap();for(response in states){if(response!=null){for(key in response.keySet()){allDataMap.put(key,response.get(key));}}}for(key in allDataMap.keySet()){def record=allDataMap.get(key);def compArray=new ArrayList();if(componentMap.containsKey(record.component_id)){compArray=componentMap.get(record.component_id);}compArray.add(record);componentMap.put(record.component_id,compArray);}def recoveredCount=0.0,recoveredTotalDuration=0.0;for(key in componentMap.keySet()){def componentArray=componentMap.get(key);for(def i=0;i<componentArray.size();i++){for(def j=i+1;j<componentArray.size();j++){if(componentArray[i].status_timestamp.getMillis()>componentArray[j].status_timestamp.getMillis()){def temp=componentArray[i];componentArray[i]=componentArray[j];componentArray[j]=temp;}}}def failedTime=0,failedRunNumber=0;for(def i=0;i<componentArray.size();i++){def status=componentArray[i].status;def runNumber=componentArray[i].run_number;if((status=='FAILED'||status=='TIMED_OUT'||status=='ABORTED')&&failedTime==0){failedTime=componentArray[i].status_timestamp.getMillis();failedRunNumber=runNumber;}if(failedTime!=0&&status=='SUCCEEDED'&&failedRunNumber<runNumber){def successTime=componentArray[i].status_timestamp.getMillis();recoveredTotalDuration+=(successTime-failedTime);recoveredCount+=1;failedTime=0;failedRunNumber=0;}}}recoveredMap.put('recoveredTotalDuration',recoveredTotalDuration);recoveredMap.put('recoveredCount',recoveredCount);def result=0.0;if(recoveredCount!=0||recoveredTotalDuration!=0){result=recoveredTotalDuration/recoveredCount;}return recoveredMap;"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,70 @@
+{
+    "definition": {
+        "id": "failure-rate-compare",
+        "title": "Change failure rate",
+        "sub_title": "Comparison",
+        "breadCrumbTitle": "{{.orgName}}",
+        "post_process_function_name": "failure rate component comparison",
+        "column_details": {
+            "column1": "Name",
+            "column2": "Average failure rate"
+        },
+        "header_field": "totalValue",
+        "compare_common_section_details": {
+            "append_unit": "%",
+            "tooltip_formatter": 1
+        }    
+    },
+    "queries":{
+        "averageFailureRateHeader": {
+            "alias": "deploy_data",
+            "query": {
+                "size": 0,
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {
+                                "range": {
+                                    "status_timestamp": {
+                                        "gte": "{{.startDate}}",
+                                        "lte": "{{.endDate}}",
+                                        "format": "yyyy-MM-dd HH:mm:ss",
+                                        "time_zone":"{{.timeZone}}"
+                                    }
+                                }
+                            },
+                            {
+                                "term": {
+                                    "org_id": "{{.orgId}}"
+                                }
+                            },
+                            {
+                                "term": {
+                                    "target_env": "{{.targetEnv}}"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "aggs": {
+                    "failure_rate_component_comparison": {
+                        "terms": {
+                          "field": "component_id",
+                          "size": 10000
+                        },
+                        "aggs": {
+                            "deploy_data": {
+                                "scripted_metric": {
+                                    "combine_script": "return state.data_map;",
+                                    "init_script": "state.data_map=[:];",
+                                    "map_script": "def map = state.data_map, runStartTime = 0;def key = doc.component_id.value + '_' + doc.run_id.value + '_' + doc.job_id.value + '_' + doc.step_id.value + '_' + doc.target_env.value + '_' + doc.status.value;def v = ['run_id': doc.run_id.value, 'job_id': doc.job_id.value, 'step_id': doc.step_id.value, 'target_env': doc.target_env.value, 'step_kind': doc.step_kind.value, 'start_time': doc.start_time.value, 'completed_time': doc.completed_time.value, 'status_timestamp': doc.status_timestamp.value, 'status': doc.status.value, 'component_id': doc.component_id.value, 'automation_id': doc.automation_id.value, 'duration': doc.duration.value];map.put(key, v);",
+                                    "reduce_script": "def allDataMap = [: ], resultMap = new HashMap();for (response in states) {if (response != null) {for (key in response.keySet()) {allDataMap.put(key, response.get(key));}}}def size = '' + allDataMap.size(), failedDeployments = 0.0;def deployments = Double.parseDouble(size);for (key in allDataMap.keySet()) {def record = allDataMap.get(key);if (record.status == 'FAILED' || record.status == 'TIMED_OUT' || record.status == 'ABORTED') {failedDeployments += 1;} }resultMap.put('deployments', deployments);resultMap.put('failedDeployments', failedDeployments);resultMap.put('average', ''+ Math.round((failedDeployments / deployments * 100) *100.0)/100.0 + '%');return resultMap;"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

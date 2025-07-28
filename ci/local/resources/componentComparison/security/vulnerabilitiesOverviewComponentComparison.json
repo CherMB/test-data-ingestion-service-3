@@ -1,0 +1,120 @@
+{
+    "definition": {
+        "id": "vulnerabilities-overview-compare",
+        "title": "Vulnerabilities overview",
+        "sub_title": "Comparison",
+        "breadCrumbTitle": "{{.orgName}}",
+        "post_process_function_name": "vulnerabilities overview comparison",
+        "column_details": {
+            "column1": "Organization name",
+            "column2": "Count/Status"
+        },
+        "header_field": "totalValue",
+        "compare_common_section_details": {
+            "type": 2,
+            "show_legends": false,
+            "is_component_compare": true,
+            "orientation": 0,
+            "append_unit": " ",
+            "tooltip_formatter": 1,
+            "color_scheme": [
+                {
+                    "color0": "#1D69FF",
+                    "color1": "#62B0FF"
+                },
+                {
+                    "color0": "#A23EB3",
+                    "color1": "#C774D6"
+                },
+                {
+                    "color0": "#D52429",
+                    "color1": "#FA6D71"
+                },
+                {
+                    "color0": "#0B7247",
+                    "color1": "#01CC75"
+                }
+            ],
+            "light_color_scheme": [
+                {
+                    "color0": "#36B2FA",
+                    "color1": "#0883D3"
+                },
+                {
+                    "color0": "#AC53F2",
+                    "color1": "#D48EFF"
+                },
+                {
+                    "color0": "#F29492",
+                    "color1": "#E73B37"
+                },
+                {
+                    "color0": "#0C9E61",
+                    "color1": "#78CAA8"
+                }
+            ]
+        }
+    },
+    "queries": {
+        "vulOverviewChart": {
+            "alias": "scan_results",
+            "query": {
+                "size": 0,
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {
+                                "range": {
+                                    "scan_time": {
+                                        "gte": "{{.startDate}}",
+                                        "lte": "{{.endDate}}",
+                                        "format": "yyyy-MM-dd HH:mm:ss",
+                                        "time_zone": "{{.timeZone}}"
+                                    }
+                                }
+                            },
+                            {
+                                "term": {
+                                    "org_id": "{{.orgId}}"
+                                }
+                            },
+                            {
+                                "exists": {
+                                    "field": "date_of_discovery"
+                                }
+                            },
+                            {
+                                "terms": {
+                                    "severity": [
+                                        "MEDIUM",
+                                        "HIGH",
+                                        "LOW",
+                                        "VERY_HIGH"
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                "aggs": {
+                    "vulnerabilities_overview_component_comparison": {
+                        "terms": {
+                            "field": "component_id",
+                            "size": 10000
+                        },
+                        "aggs": {
+                            "vulnerabilityStatusCounts": {
+                                "scripted_metric": {
+                                    "init_script": "state.statusMap = [:];",
+                                    "map_script": "def map=state.statusMap;def key=doc.org_id.value+'_'+doc.component_id.value+ '_' +doc.github_branch.value +'_'+doc.code.value+'_'+doc.scanner_name.value+'_'+doc['timestamp'].getValue().toEpochSecond()*1000;def v=['org_id': doc.org_id.value, 'component_id': doc.component_id.value,'branch': doc.github_branch.value,'scanner_name': doc.scanner_name.value,'timestamp':doc['timestamp'].getValue().toEpochSecond()*1000,'code':doc.code.value,'bug_status':doc.bug_status.value,'name':doc.name.value, 'component_name':doc.component_name.value, 'severity':doc.severity.value];map.put(key,v);",
+                                    "combine_script": "return state.statusMap;",
+                                    "reduce_script": "def statusMap = new HashMap();def countMap = new HashMap();countMap.put('Open', 0);countMap.put('Reopened', 0);countMap.put('Resolved', 0);for (a in states){if (a != null){for (i in a.keySet()){def record = a.get(i);def key = record.org_id + '_' + record.code;if (statusMap.containsKey(key)){def vulDetailsMap = statusMap.get(key);def vulKey = record.org_id + '_' + record.component_id + '_' + record.branch + '_' + record.code + '_' + record.scanner_name;if (vulDetailsMap.containsKey(vulKey)){def lastRecord = vulDetailsMap.get(vulKey);if (lastRecord.timestamp < record.timestamp){vulDetailsMap.put(vulKey, record);}} else{vulDetailsMap.put(vulKey, record);}} else{def vulDetailsMap = new HashMap();def vulKey = record.org_id + '_' + record.component_id + '_' + record.branch + '_' + record.code + '_' + record.scanner_name;vulDetailsMap.put(vulKey, record);statusMap.put(key, vulDetailsMap);}}}}if (statusMap.size() > 0){for (uniqueKey in statusMap.keySet()){def vulMapBranchLevel = statusMap.get(uniqueKey);def isVulOpen = false;def isVulReopened = false;for (vulKey in vulMapBranchLevel.keySet()){def vul = vulMapBranchLevel.get(vulKey);if (vul.bug_status == 'Open'){isVulOpen = true;} else if (vul.bug_status == 'Reopened'){isVulOpen = true;isVulReopened = true;break;}}if (!isVulOpen){if(countMap.containsKey('Resolved')){def count = countMap.get('Resolved');countMap.put('Resolved', count+1);} else{countMap.put('Resolved', 1);}} else{if (isVulReopened){if(countMap.containsKey('Reopened')){def count = countMap.get('Reopened');countMap.put('Reopened', count+1);} else{countMap.put('Reopened', 1);}} else{if(countMap.containsKey('Open')){def count = countMap.get('Open');countMap.put('Open', count+1);} else{countMap.put('Open', 1);}}}}}def found = statusMap.size();countMap.put('Found',found);return countMap;"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

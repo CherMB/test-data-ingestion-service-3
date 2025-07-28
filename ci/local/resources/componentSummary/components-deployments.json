@@ -1,0 +1,77 @@
+{
+    "widget": {
+        "id": "cs3",
+        "title": "Deployments",
+        "description": "",
+        "content": [
+           
+        ],
+        "pagination": true
+    },
+    "mockdata": {
+        "mockHeader1": {
+            "value": 198
+        },
+        "mockHeader2": {
+            "subHeader": [
+                {
+                    "drillDown": {
+                        "reportId": "deploymentOverview",
+                        "reportInfo": {
+                            "deploymentEnv": "staging"
+                        },
+                        "reportTitle": "Deployment overview",
+                        "reportType": "status"
+                    },
+                    "title": "Success",
+                    "value": 57
+                },
+                {
+                    "drillDown": {
+                        "reportId": "deploymentOverview",
+                        "reportInfo": {
+                            "deploymentEnv": "staging"
+                        },
+                        "reportTitle": "Deployment overview",
+                        "reportType": "status"
+                    },
+                    "title": "Failure",
+                    "value": 6
+                }
+            ]
+        },
+        "mockSection2": [
+            {
+                "data": [
+                    {
+                        "x": "2023-10-01",
+                        "y": 0
+                    },
+                    {
+                        "x": "2023-10-02",
+                        "y": 6
+                    }
+                ],
+                "id": "Failure"
+            },
+            {
+                "data": [
+                    {
+                        "x": "2023-10-01",
+                        "y": 5
+                    },
+                    {
+                        "x": "2023-10-02",
+                        "y": 52
+                    }
+                ],
+                "id": "Success"
+            }
+        ]
+    },
+    "functions": [
+        "mockHeader1",
+        "mockHeader2",
+        "mockSection2"
+    ]
+}

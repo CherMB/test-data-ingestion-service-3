@@ -1,0 +1,46 @@
+{
+    "definition": {
+        "id": "security-components-compare",
+        "title": "Components",
+        "sub_title": "Comparison",
+        "breadCrumbTitle": "{{.orgName}}",
+        "post_process_function_name": "security components component comparison",
+        "function_name": "security widget component comparison",
+        "column_details": {
+            "column1": "Organization name",
+            "column2": "Count / Status"
+        },
+        "header_field": "totalValue",
+        "compare_common_section_details": {
+            "type": 2,
+            "show_legends": false,
+            "is_component_compare": true,
+            "orientation": 0,
+            "append_unit": " ",
+            "tooltip_formatter": 1,
+            "color_scheme": [
+                {
+                    "color0": "#8BA9B8",
+                    "color1": "#5D7689"
+                },
+                {
+                    "color0": "#FFDAA5",
+                    "color1": "#FF8509"
+                }
+            ],
+            "light_color_scheme": [
+                {
+                    "color0": "#B2CDDF",
+                    "color1": "#7297AE"
+                },
+                {
+                    "color0": "#FFDAA5",
+                    "color1": "#FF9529"
+                }
+            ]
+        }
+    },
+    "functions": [
+        "security widget component comparison"
+    ]
+}

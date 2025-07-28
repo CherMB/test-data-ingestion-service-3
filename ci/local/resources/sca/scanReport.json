@@ -1,0 +1,114 @@
+{
+  "queries": {
+    "scanResultsHeader": {
+      "alias": "scan_results",
+      "query": {
+        "_source": false,
+        "size": 0,
+        "query": {
+          "bool": {
+            "filter": [
+              {
+                "term": {
+                  "org_id": "{{.orgId}}"
+                }
+              },
+              {
+                "term": {
+                  "run_id": "{{.runId}}"
+                }
+              }
+            ]
+          }
+        },
+        "aggs": {
+          "scanResultsHeader": {
+            "scripted_metric": {
+              "init_script": "state.data_map=[:];",
+              "map_script": "def map=state.data_map;def key=doc.org_id.value+'_'+doc.component_id.value+'_'+doc.code.value+'_'+doc.severity.value+'_'+(doc.timestamp.getValue().toEpochSecond()*1000);def v=['org_id':doc.org_id.value,'component_id':doc.component_id.value,'component_name':doc.component_name.value,'code':doc.code.value,'github_user_id':doc.github_user_id.value,'github_commit_id':doc.github_commit_id.value,'github_branch':doc.github_branch.value,'failure_count':doc['failure_count'].value,'severity':doc.severity.value,'scan_time':doc.scan_time.value,'automation_id':doc.automation_id.value,'scanner_name':doc.scanner_name.value,'timestamp':(doc.timestamp.getValue().toEpochSecond()*1000)];map.put(key,v);",
+              "combine_script": "return state.data_map;",
+              "reduce_script": "def tmpMap=[:];def out=[:];def countMap=new LinkedHashMap();for(agg in states){if(agg!=null){for(key in agg.keySet()){def record=agg.get(key);def devkey=record.org_id+'_'+record.component_id+'_'+record.code+'_'+record.severity;if(tmpMap.containsKey(devkey)){def mapRecord=tmpMap.get(devkey);if(mapRecord.timestamp<record.timestamp){tmpMap.put(devkey,record);}}else{tmpMap.put(devkey,record);}}}}def total=0;def headerRecord=null;countMap.put('Total',total);for(key in tmpMap.keySet()){def v=tmpMap.get(key);if(headerRecord==null){headerRecord=v;}def severity=v['severity'];if(countMap.containsKey(severity)){def count=countMap.get(severity);countMap.put(severity,v['failure_count']);}else{countMap.put(severity,v['failure_count']);}total=total+v['failure_count'];}countMap.put('Total',total);def headerArray=new ArrayList();def headerNames=['component_name':'Component Name','github_user_id':'Commit by','github_commit_id':'Commit id','github_branch':'Branch','scan_time':'Scan Time','automation_id':'Automation','scanner_name':'Scanner Name'];for(headerKey in headerNames.keySet()){if(headerRecord!=null){def record=['key':headerNames[headerKey],'value':headerRecord[headerKey]];headerArray.add(record);}else{def record=['key':headerNames[headerKey],'value':''];headerArray.add(record);}}def vulnerabilityOverview=new ArrayList();for(key in countMap.keySet()){def record=['key':key,'value':countMap.get(key)];vulnerabilityOverview.add(record);}def resultRecord=['header':headerArray,'vulnerabilitiesOverview':vulnerabilityOverview];return resultRecord;"
+            }
+          }
+        }
+      }
+    },
+    "scanResultsGrid": {
+      "alias": "scan_results",
+      "query": {
+        "_source": false,
+        "size": 0,
+        "query": {
+          "bool": {
+            "filter": [
+              {
+                "term": {
+                  "org_id": "{{.orgId}}"
+                }
+              },
+              {
+                "term": {
+                  "run_id": "{{.runId}}"
+                }
+              }
+            ]
+          }
+        },
+        "aggs": {
+          "vulnerabilities": {
+            "scripted_metric": {
+              "init_script": "state.data_map=[];",
+              "map_script": "def result=state.data_map;def failureFiles=params._source['failure_files'];for(def obj:failureFiles){def map=[:];map.put('componentId',doc.component_id.value);map.put('timestamp',doc.timestamp.value);map.put('issueCode',doc.code.value);map.put('issueName',doc.name.value);map.put('severity',doc.severity.value);map.put('package_name',obj['PackageName']);map.put('issueFoundIn',obj['Issue Found In']);result.add(map);}",
+              "combine_script": "return state.data_map;",
+              "reduce_script": "def tmpMap=[:];def out=[:];def resultList=new ArrayList();def countMap=new HashMap();for(agg in states){if(agg!=null&&agg.length>0){for(issue in agg){resultList.add(issue);}}}out.put('result',resultList);return out;"
+            }
+          }
+        }
+      }
+    }
+  },
+  "specs": {
+    "scanResultsHeaderSpec": [
+      {
+        "operation": "shift",
+        "spec": {
+          "aggregations": {
+            "scanResultsHeader": {
+              "value": {
+                "header": ""
+              }
+            }
+          }
+        }
+      }
+    ],
+    "scanResultsVulnerabilityOverviewSpec": [
+      {
+        "operation": "shift",
+        "spec": {
+          "aggregations": {
+            "scanResultsHeader": {
+              "value": {
+                "vulnerabilitiesOverview": ""
+              }
+            }
+          }
+        }
+      }
+    ],
+    "scanResultsGridSpec": [
+      {
+        "operation": "shift",
+        "spec": {
+          "aggregations": {
+            "vulnerabilities": {
+              "value": {
+                "result": ""
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

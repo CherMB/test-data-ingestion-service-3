@@ -1,0 +1,13 @@
+{
+    "widget": {
+        "id": "ci4",
+        "title": "Runs overview",
+        "description": "Runs overview for ci insights tool.",
+        "data": {
+            "function_name": "Insight Runs Overview Widget"
+        }
+    },
+    "functions": [
+        "Insight Runs Overview Widget"
+    ]
+}

@@ -1,0 +1,365 @@
+apiVersion: automation.cloudbees.io/v1alpha1
+kind: workflow
+name: Build and deploy
+
+on:
+  push:
+    branches:
+      - "**"
+
+permissions:
+  scm-token-own: read
+  scm-token-org: read
+  id-token: write
+  
+jobs:
+  unit-test-and-scan:
+    steps:
+      - name: Get source code
+        uses: cloudbees-io/checkout@v1
+      - id: unit-test-and-scan
+        name: Run Unit test
+        uses: calculi-corp/cb-internal-shared-actions/build@v3
+        with:
+          run-unit-test: "true"
+          go-binary-build: "false"
+          kaniko-build: "false"
+          trivy-scan-container: "false"
+          unit-test-percent: "80"
+          sonarqube-threshold-critical: 0
+          sonarqube-threshold-very-high: 2
+          sonarqube-threshold-high: 1
+          sonarqube-threshold-medium: 1
+          sonarqube-threshold-low: 0
+
+  build:
+    outputs:
+      tag: ${{ steps.build-container.outputs.tag-digest }}
+    steps:
+      - name: Get source code
+        uses: cloudbees-io/checkout@v1
+
+      - name: Setup git credentials
+        uses: cloudbees-io/configure-git-global-credentials@v1
+
+      - id: build-go-binary
+        name: Build Go binary
+        uses: docker://golang:latest
+        kind: build
+        run: |
+          GOOS=linux GOARCH=amd64 go build -a -tags netgo -ldflags '-w -extldflags \"-static\"' -o reports-service --buildvcs=0
+        env:
+          CGO_ENABLED: "0"
+
+      - name: Login to AWS
+        if: ${{ vars.workflow_execution_env == 'production' }}
+        uses: cloudbees-io/configure-aws-credentials@v1
+        id: aws-login
+        with:
+          aws-region: us-east-1
+          role-to-assume: ${{ vars.oidc_staging_iam_role }}
+          role-duration-seconds: "3600" # optionally set the duration of the login token
+
+      - name: Configure container registry for Staging ECR
+        if: ${{ vars.workflow_execution_env == 'production' }}
+        uses: cloudbees-io/configure-ecr-credentials@v1
+
+      - id: build-container
+        if: ${{ vars.workflow_execution_env == 'production' }}
+        name: Build container image
+        uses: cloudbees-io/kaniko@v1
+        with:
+          dockerfile: Dockerfile-new
+          destination: ${{ vars.staging_image_registry }}/reports-service:${{ cloudbees.version }}${{ cloudbees.scm.branch == 'main' && format(',{0}/reports-service:latest', vars.staging_image_registry) || '' }}
+
+      - name: Run TruffleHog Container Action
+        if: ${{ vars.workflow_execution_env == 'production' }}
+        uses: cloudbees-io/trufflehog-secret-scan-container@v1
+        with:
+          image-location: ${{ vars.staging_image_registry }}/reports-service
+          image-tag: ${{ cloudbees.version }}
+          threshold-very-high: 0
+
+  publish-charts:
+    if: ${{ vars.workflow_execution_env == 'production' }}
+    needs: [build]
+    outputs:
+      chart: ${{ steps.helmpush.outputs.chart }}
+      version: ${{ steps.helmpush.outputs.version }}
+      name: ${{ steps.helmpkg.outputs.name }}
+    steps:
+      - name: Get source code
+        uses: cloudbees-io/checkout@v1
+
+      - name: Login to AWS
+        uses: cloudbees-io/configure-aws-credentials@v1
+        id: aws-login
+        with:
+          aws-region: us-east-1
+          role-to-assume: ${{ vars.oidc_staging_iam_role }}
+          role-duration-seconds: "3600" # optionally set the duration of the login token
+
+      - name: Configure container registry for Staging ECR
+        uses: cloudbees-io/configure-ecr-credentials@v1
+
+      - id: lint-chart
+        name: Lint Helm chart
+        uses: docker://alpine/helm:3.12.1
+        run: |
+          set -ux
+          helm lint ./charts/reports-service
+
+      - id: helmpkg
+        name: Package Helm chart
+        uses: cloudbees-io/helm-package@v1
+        with:
+          chart: ./charts/reports-service
+          version: ${{ cloudbees.version }}${{ cloudbees.scm.branch != 'main' && '-dev' || '' }}
+          values: |
+            base:
+              image:
+                tag: ${{ needs.build.outputs.tag }}
+
+      - id: helmpush
+        name: Publish Helm chart
+        uses: cloudbees-io/helm-push@v1
+        with:
+          chart: ${{ steps.helmpkg.outputs.chart }}
+          remote: oci://${{ vars.staging_chart_registry }}
+
+      - id: helmpkg-for-integration
+        if: ${{ cloudbees.scm.branch == 'main' }}
+        name: Package Helm chart
+        uses: cloudbees-io/helm-package@v1
+        with:
+          chart: ./charts/reports-service
+          version: "0.0.0+main"
+          values: |
+            base:
+              image:
+                tag: ${{ needs.build.outputs.tag  }}
+
+      - id: helmpush-for-integration
+        if: ${{ cloudbees.scm.branch == 'main' }}
+        name: Publish Helm chart
+        uses: cloudbees-io/helm-push@v1
+        with:
+          chart: ${{ steps.helmpkg-for-integration.outputs.chart }}
+          remote: oci://${{ vars.staging_chart_registry }}
+
+  publish-consul:
+    if: ${{ vars.workflow_execution_env == 'production' }}
+    outputs:
+      name: ${{ steps.consulservicename.outputs.name }}
+    steps:
+      - id: consulservicename
+        name: Generate consul service name for the application
+        uses: docker://alpine:3.18
+        run: |
+          if [ '${{ cloudbees.scm.branch }}' = main ]; then
+            printf %s reports-service > $CLOUDBEES_OUTPUTS/name
+          else
+            name=$(printf %s-%s reports-service  ${{ cloudbees.scm.sha }})
+            printf %s "$name" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/' > $CLOUDBEES_OUTPUTS/name
+          fi
+
+  # splitting db-service dependency to its own action, which saves about 2 mins
+  deploy-db-dependencies:
+    if: ${{ vars.workflow_execution_env == 'production' && cloudbees.scm.branch != 'main'}}
+    steps:
+      - id: install-dependencies
+        name: Install $application_name dependencies helm charts
+        uses: ./actions/dependencies/db
+        with:
+          registry: ${{ vars.staging_image_registry }}
+          chart-registry: ${{ vars.staging_chart_registry }}
+          oidc-iam-role: ${{ vars.oidc_staging_iam_role }}
+          cluster-name: ${{ vars.staging_east_cluster_name }}
+
+  deploy-nats-dependencies:
+    if: ${{ vars.workflow_execution_env == 'production' && cloudbees.scm.branch != 'main'}}
+    steps:
+      - id: install-dependencies
+        name: Install $application_name dependencies helm charts
+        uses: ./actions/dependencies/nats
+        with:
+          chart-registry: ${{ vars.staging_chart_registry }}
+          oidc-iam-role: ${{ vars.oidc_staging_iam_role }}
+          cluster-name: ${{ vars.staging_east_cluster_name }}
+
+  deploy-east-1:
+    if: ${{ vars.workflow_execution_env == 'production' }}
+    needs: [publish-charts, publish-consul, deploy-nats-dependencies, deploy-db-dependencies, unit-test-and-scan]
+    environment: preprod-us-east-1
+    steps:
+      - id: aws-login
+        name: Login to AWS
+        uses: cloudbees-io/configure-aws-credentials@v1
+        with:
+          aws-region: us-east-1
+          role-to-assume: ${{ vars.oidc_staging_iam_role }}
+          role-duration-seconds: "3600" # optionally set the duration of the login token
+
+      - id: configure-ecr-registry
+        name: Configure container registry for Staging ECR
+        uses: cloudbees-io/configure-ecr-credentials@v1
+
+      - id: configure-eks-creds
+        uses: cloudbees-io/configure-eks-credentials@v1
+        with:
+          name: ${{ vars.staging_east_cluster_name }}
+
+      - id: createns
+        name: Create Kubernetes Namespace
+        uses: cloudbees-io/create-k8s-namespace@v1
+        with:
+          name: ${{ cloudbees.scm.branch == 'main' && 'platform' || format('{0}-{1}-{2}', cloudbees.scm.branch, cloudbees.scm.repository, cloudbees.scm.sha) }}
+          sanitize-name: ${{ cloudbees.scm.branch != 'main' }}
+          labels: |
+            cloudbees.io/cleanup: "${{ cloudbees.scm.branch != 'main' }}"
+
+      - id: install-charts
+        name: Install reports-service helm chart
+        uses: ./actions/deploy
+        kind: deploy
+        with:
+          deploy-branch: main
+          consule-service-name: ${{ needs.publish-consul.outputs.name }}
+          cb-internal-db-service: "true"
+          cb-internal-nats: "true"
+          install-type: helm-install
+          namespace: ${{ steps.createns.outputs.name }}
+          chart-location: ${{ needs.publish-charts.outputs.chart }}
+          chart-version: ${{ needs.publish-charts.outputs.version }}
+          release-name: ${{ needs.publish-charts.outputs.name }}
+          registry-root: ${{ vars.staging_chart_registry }}
+          image-registry: ${{ vars.staging_image_registry }}
+          values: |
+            global:
+              imageRegistry: ${{ vars.staging_image_registry }}
+            base:
+              replicas: ${{ cloudbees.scm.branch == 'main' && '3' || '1' }}
+              service:
+                annotations:
+                  consul.hashicorp.com/service-name: ${{ needs.publish-consul.outputs.name }}
+              resources:
+                limits:
+                  cpu: ${{ cloudbees.scm.branch == 'main' && '1500m' || '500m' }}
+                  memory: ${{ cloudbees.scm.branch == 'main' && '2Gi' || '128Mi' }}
+                requests:
+                  cpu: ${{ cloudbees.scm.branch == 'main' && '250m' || '200m' }}
+                  memory: ${{ cloudbees.scm.branch == 'main' && '500Mi' || '64Mi' }}
+              datadog:
+                enabled: true
+                environment: ${{ vars.dd_target_env }}
+                versionOverride: ${{ needs.publish-charts.outputs.version }}
+              directEnv:
+                NATS_SERVER: ${{ cloudbees.scm.branch == 'main' && 'tls://nats.query.consul:4222' || 'tls://nats:4222' }}
+                OPENSEARCH_ENDPOINT: ${{ vars.OPENSEARCH_ENDPOINT_STAGING }}
+                SERVICE_AUTH: ${{ cloudbees.scm.branch == 'main' && 'auth-service.query.consul:8081' || 'auth-service:8081' }}
+                SERVICE_DB: ${{ cloudbees.scm.branch == 'main' && 'db-service.query.consul:8083' || 'db-service:8083' }}
+                SERVICE_ENDPOINT: ${{ cloudbees.scm.branch == 'main' && 'endpoint-service.query.consul:8102' || 'endpoint-service:8102' }}
+                SERVICE_RBACSERVICE: ${{ cloudbees.scm.branch == 'main' && 'rbac-service.query.consul:8101' || 'rbac-service:8101' }}
+                SERVICE_REPOSITORY: ${{ cloudbees.scm.branch == 'main' && 'repository-service.query.consul:8100' || 'repository-service:8100' }}
+                SERVICE_SECRET: ${{ cloudbees.scm.branch == 'main' && 'secret-service.query.consul:8087' || 'secret-service:8087' }}
+                OPENSEARCH_USE_SECRET: ${{ cloudbees.scm.branch == 'main' }}
+              secretEnv:
+                OPENSEARCH_USER: ${{ secrets.OPENSEARCH_USERNAME_STAGING }}
+                OPENSEARCH_PWD: ${{ secrets.OPENSEARCH_PASSWORD_STAGING }}
+                NATS_USERNAME: ${{ secrets.NATS_USERNAME }}
+                NATS_PASSWORD: ${{ secrets.NATS_PASSWORD }}
+
+      - id: uninstall-chart
+        name: Uninstall $application_name helm chart us-east-1
+        if: ${{ cloudbees.scm.branch != 'main' }}
+        uses: ./actions/cleanup
+        with:
+          release-name: ${{ needs.publish-charts.outputs.name }}
+          namespace: ${{ steps.createns.outputs.name }}
+
+  deploy-west-2:
+    if: ${{ vars.workflow_execution_env == 'production' && cloudbees.scm.branch == 'main' }}
+    needs: [publish-charts, publish-consul, unit-test-and-scan]
+    environment: preprod-us-west-2
+    steps:
+      - name: Login to AWS us-east-1 for ECR registry access
+        uses: cloudbees-io/configure-aws-credentials@v1
+        id: aws-login-ecr-registry
+        with:
+          aws-region: us-east-1
+          role-to-assume: ${{ vars.oidc_staging_iam_role }}
+          role-duration-seconds: "3600" # optionally set the duration of the login token
+
+      - name: Configure container registry for Staging ECR us-east-1
+        uses: cloudbees-io/configure-ecr-credentials@v1
+
+      - name: Login to AWS
+        uses: cloudbees-io/configure-aws-credentials@v1
+        id: aws-login
+        with:
+          aws-region: us-west-2
+          role-to-assume: ${{ vars.oidc_staging_iam_role }}
+          role-duration-seconds: "3600" # optionally set the duration of the login token
+
+      - name: Configure container registry for Staging ECR
+        uses: cloudbees-io/configure-ecr-credentials@v1
+
+      - uses: cloudbees-io/configure-eks-credentials@v1
+        with:
+          name: ${{ vars.staging_west_cluster_name }}
+
+      - id: createns
+        name: Create Kubernetes Namespace
+        uses: cloudbees-io/create-k8s-namespace@v1
+        with:
+          name: ${{ cloudbees.scm.branch == 'main' && 'platform' || format('{0}-{1}-{2}', cloudbees.scm.branch, cloudbees.scm.repository, cloudbees.scm.sha) }}
+          sanitize-name: ${{ cloudbees.scm.branch != 'main' }}
+          labels: |
+            cloudbees.io/cleanup: "${{ cloudbees.scm.branch != 'main' }}"
+
+      - id: install-charts
+        name: Install reports-service helm chart
+        uses: ./actions/deploy
+        kind: deploy
+        with:
+          deploy-branch: main
+          consule-service-name: ${{ needs.publish-consul.outputs.name }}
+          cb-internal-db-service: "true"
+          cb-internal-nats: "true"
+          install-type: helm-install
+          namespace: ${{ steps.createns.outputs.name }}
+          chart-location: ${{ needs.publish-charts.outputs.chart }}
+          chart-version: ${{ needs.publish-charts.outputs.version }}
+          release-name: ${{ needs.publish-charts.outputs.name }}
+          registry-root: ${{ vars.staging_chart_registry }}
+          image-registry: ${{ vars.staging_image_registry }}
+          values: |
+            global:
+              imageRegistry: ${{ vars.staging_image_registry }}
+            base:
+              replicas: ${{ cloudbees.scm.branch == 'main' && '3' || '1' }}
+              service:
+                annotations:
+                  consul.hashicorp.com/service-name: ${{ needs.publish-consul.outputs.name }}
+              resources:
+                limits:
+                  cpu: ${{ cloudbees.scm.branch == 'main' && '1500m' || '500m' }}
+                  memory: ${{ cloudbees.scm.branch == 'main' && '2Gi' || '128Mi' }}
+                requests:
+                  cpu: ${{ cloudbees.scm.branch == 'main' && '250m' || '200m' }}
+                  memory: ${{ cloudbees.scm.branch == 'main' && '500Mi' || '64Mi' }}
+              secretEnv:
+                OPENSEARCH_USER: ${{ secrets.OPENSEARCH_USERNAME_STAGING }}
+                OPENSEARCH_PWD: ${{ secrets.OPENSEARCH_PASSWORD_STAGING }}
+                NATS_USERNAME: ${{ secrets.NATS_USERNAME }}
+                NATS_PASSWORD: ${{ secrets.NATS_PASSWORD }}
+              directEnv:
+                NATS_SERVER: ${{ cloudbees.scm.branch == 'main' && 'tls://nats.query.consul:4222' || 'tls://nats:4222' }}
+                OPENSEARCH_ENDPOINT: ${{ vars.OPENSEARCH_ENDPOINT_STAGING }}
+                SERVICE_AUTH: ${{ cloudbees.scm.branch == 'main' && 'auth-service.query.consul:8081' || 'auth-service:8081' }}
+                SERVICE_DB: ${{ cloudbees.scm.branch == 'main' && 'db-service.query.consul:8083' || 'db-service:8083' }}
+                SERVICE_ENDPOINT: ${{ cloudbees.scm.branch == 'main' && 'endpoint-service.query.consul:8102' || 'endpoint-service:8102' }}
+                SERVICE_RBACSERVICE: ${{ cloudbees.scm.branch == 'main' && 'rbac-service.query.consul:8101' || 'rbac-service:8101' }}
+                SERVICE_REPOSITORY: ${{ cloudbees.scm.branch == 'main' && 'repository-service.query.consul:8100' || 'repository-service:8100' }}
+                SERVICE_SECRET: ${{ cloudbees.scm.branch == 'main' && 'secret-service.query.consul:8087' || 'secret-service:8087' }}
+                OPENSEARCH_USE_SECRET: ${{ cloudbees.scm.branch == 'main' }}

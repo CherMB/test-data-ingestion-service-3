@@ -1,0 +1,65 @@
+{
+    "widget": {
+        "id": "cs4",
+        "title": "Code coverage",
+        "description": "",
+        "content": [
+            {
+                "header": [
+                    {
+                        "title": "Coverage",
+                        "description": "Coverage",
+                        "queryKey": "",
+                        "past_duration_query_key": "",
+                        "specKey": "",
+                        "type": "",
+                        "function_name": "Code Coverage Header",
+                        "drill_down": null
+                    }
+                ],
+                "section": [
+                    {
+                        "type": 4,
+                        "show_legends": false,
+                        "color_scheme": [
+                            {
+                                "color0": "#8BA9B8",
+                                "color1": "#5C7588"
+                            }
+                        ],
+                        "queryKey": "",
+                        "specKey": "",
+                        "function_name": "Code Coverage Section1",
+                        "title": "",
+                        "info": null,
+                        "data_type": 0,
+                        "category_type": "",
+                        "orientation": 0,
+                        "drill_down": null
+                    },
+                    {
+                        "type": 13,
+                        "show_legends": false,
+                        "color_scheme": null,
+                        "queryKey": "",
+                        "specKey": "",
+                        "function_name": "Code Coverage Section2",
+                        "title": "",
+                        "info": null,
+                        "data_type": 0,
+                        "category_type": "",
+                        "orientation": 0,
+                        "drill_down": null
+                    }
+                ],
+                "footer": []
+            }
+        ],
+        "pagination": false
+    },
+    "functions": [
+        "Code Coverage Header",
+        "Code Coverage Section1",
+        "Code Coverage Section2"
+    ]
+}

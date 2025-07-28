@@ -1,0 +1,217 @@
+{
+    "widget": {
+        "id": "f5",
+        "title": "Work items distribution",
+        "description": "",
+        "content": [
+            {
+                "header": [
+                    {
+                        "title": "Distribution of completed work item types",
+                        "description": "Distribution of completed work item types"
+                    }
+                ],
+                "section": [
+                    {
+                        "type": 2,
+                        "show_legends": true,
+                        "color_scheme": [
+                            {
+                                "color0": "#E19090",
+                                "color1": "#DE3838"
+                            },
+                            {
+                                "color0": "#62B0FF",
+                                "color1": "#1C67FF"
+                            },
+                            {
+                                "color0": "#E2C2A4",
+                                "color1": "#E78730"
+                            },
+                            {
+                                "color0": "#9FB6C1",
+                                "color1": "#577688"
+                            }
+                        ],
+                        "light_color_scheme": [
+                            {
+                                "color0": "#FF9E9C",
+                                "color1": "#DE4643"
+                            },
+                            {
+                                "color0": "#38B3FB",
+                                "color1": "#047ED0"
+                            },
+                            {
+                                "color0": "#FFD3AA",
+                                "color1": "#E8A263"
+                            },
+                            {
+                                "color0": "#AFBFC6",
+                                "color1": "#7692A3"
+                            }
+                        ],
+                        "post_process_function_name": "work item distribution",
+                        "spec_key": "flowDistributionChartAvgSpec",
+                        "drill_down": {
+                            "report_id": "flowMetrics-workItemDistribution",
+                            "report_type": "flowItemType",
+                            "report_title": "Work item distribution"
+                        },
+                        "orientation": 0
+                    },
+                    {
+                        "type": 5,
+                        "show_legends": true,
+                        "color_scheme": [
+                            {
+                                "color0": "#E19090",
+                                "color1": "#DE3838"
+                            },
+                            {
+                                "color0": "#62B0FF",
+                                "color1": "#1C67FF"
+                            },
+                            {
+                                "color0": "#E2C2A4",
+                                "color1": "#E78730"
+                            },
+                            {
+                                "color0": "#9FB6C1",
+                                "color1": "#577688"
+                            }
+                        ],
+                        "light_color_scheme": [
+                            {
+                                "color0": "#FF9E9C",
+                                "color1": "#DE4643"
+                            },
+                            {
+                                "color0": "#38B3FB",
+                                "color1": "#047ED0"
+                            },
+                            {
+                                "color0": "#FFD3AA",
+                                "color1": "#E8A263"
+                            },
+                            {
+                                "color0": "#AFBFC6",
+                                "color1": "#7692A3"
+                            }
+                        ],
+                        "post_process_function_name": "work item distribution",
+                        "spec_key": "flowDistributionChartSpec",
+                        "enable_post_transformation_processing": true,
+                        "drill_down": {
+                            "report_id": "flowMetrics-workItemDistribution",
+                            "report_type": "flowItemType",
+                            "report_title": "Work item distribution"
+                        },
+                        "orientation": 0
+                    }
+                ]
+            }
+        ]
+    },
+    "queries": {
+        "flowDistributionChart": {
+            "alias": "flow_metrics",
+            "query": {
+                "size": 0,
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {
+                                "range": {
+                                    "completed_at": {
+                                        "gte": "{{.startDate}}",
+                                        "lte": "{{.endDate}}",
+                                        "format": "yyyy-MM-dd HH:mm:ss",
+                                        "time_zone":"{{.timeZone}}"
+                                    }
+                                }
+                            },
+                            {
+                                "term": {
+                                    "org_id": "{{.orgId}}"
+                                }
+                            },
+                            {
+                                "term": {
+                                    "deleted": "false"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "aggs": {
+                    "flow_distribution_buckets": {
+                        "date_histogram": {
+                            "field": "completed_at",
+                            "calendar_interval": "{{.aggrBy}}",
+                            "min_doc_count": 0,
+                            "format": "yyyy-MM-dd",
+                            "time_zone":"{{.timeZone}}",
+                            "extended_bounds": {
+                                "min": "{{.dateHistogramMin}}",
+                                "max": "{{.dateHistogramMax}}"
+                            }
+                        },
+                        "aggs": {
+                            "flow_distribution_count": {
+                                "scripted_metric": {
+                                    "init_script": "state.statusMap = [:];",
+                                    "map_script": "def map=state.statusMap;def key=doc.automation_id.value+'_'+doc.component_id.value+'_'+doc.flow_item.value+'_'+doc.issue_key.value+'_'+doc.run_id.value+'_'+doc.org_id.value;def v=['updatedAt':doc['updated_at'].getValue().toEpochSecond()*1000,'automation_id':doc.automation_id.value,'component_id':doc.component_id.value,'flow_item':doc.flow_item.value,'run_id':doc.run_id.value,'org_id':doc.org_id.value,'issue_key':doc.issue_key.value];map.put(key,v);",
+                                    "combine_script": "return state.statusMap;",
+                                    "reduce_script": "def statusMap=new HashMap();def countMap=new HashMap();def resultMap=new HashMap();def totalCount=0;countMap.put('FEATURE',0);countMap.put('DEFECT',0);countMap.put('RISK',0);countMap.put('TECH_DEBT',0);for(a in states){if(a!=null){for(i in a.keySet()){def record=a.get(i);def key=record.issue_key;if(statusMap.containsKey(key)){def lastRecord=statusMap.get(key);if(lastRecord.updatedAt<record.updatedAt){statusMap.put(key,record);}}else{statusMap.put(key,record);}}}}for(type in statusMap.keySet()){def countRecordType=statusMap.get(type).flow_item;if(countMap.containsKey(countRecordType)){def count=countMap.get(countRecordType);countMap.put(countRecordType,count+1);}else{countMap.put(countRecordType,1);}totalCount++;}for(type in countMap.keySet()){double count=countMap.get(type);if(count>0){resultMap.put(type,Math.round((count*100)/totalCount));}else{resultMap.put(type,0);}}return resultMap;"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "flowDistributionAvgChart": {
+            "alias": "flow_metrics",
+            "query": {
+                "size": 0,
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {
+                                "range": {
+                                    "completed_at": {
+                                        "gte": "{{.startDate}}",
+                                        "lte": "{{.endDate}}",
+                                        "format": "yyyy-MM-dd HH:mm:ss",
+                                        "time_zone":"{{.timeZone}}"
+                                    }
+                                }
+                            },
+                            {
+                                "term": {
+                                    "org_id": "{{.orgId}}"
+                                }
+                            },
+                            {
+                                "term": {
+                                    "deleted": "false"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "aggs": {
+                    "flow_distribution_avg_count": {
+                        "scripted_metric": {
+                            "init_script": "state.statusMap = [:];",
+                            "map_script": "def map=state.statusMap;def key=doc.automation_id.value+'_'+doc.component_id.value+'_'+doc.flow_item.value+'_'+doc.issue_key.value+'_'+doc.run_id.value+'_'+doc.org_id.value+'_'+doc.updated_at.getValue().toEpochSecond()*1000;def v=['updatedAt':doc['updated_at'].getValue().toEpochSecond()*1000,'automation_id':doc.automation_id.value,'component_id':doc.component_id.value,'flow_item':doc.flow_item.value,'run_id':doc.run_id.value,'org_id':doc.org_id.value,'issue_key':doc.issue_key.value];map.put(key,v);",
+                            "combine_script": "return state.statusMap;",
+                            "reduce_script": "def statusMap=new HashMap();def countMap=new LinkedHashMap();def resultMap=new LinkedHashMap();def waitingList=new ArrayList();def totalCount=0;def nameRecord=['TECH_DEBT':'Tech debt','DEFECT':'Defect','FEATURE':'Feature','RISK':'Risk'];countMap.put('DEFECT',0);countMap.put('FEATURE',0);countMap.put('RISK',0);countMap.put('TECH_DEBT',0);for(a in states){if(a!=null){for(i in a.keySet()){def record=a.get(i);def key=record.issue_key;if(statusMap.containsKey(key)){def lastRecord=statusMap.get(key);if(lastRecord.updatedAt<record.updatedAt){statusMap.put(key,record);}}else{statusMap.put(key,record);}}}}for(type in statusMap.keySet()){def countRecordType=statusMap.get(type).flow_item;if(countMap.containsKey(countRecordType)){def count=countMap.get(countRecordType);countMap.put(countRecordType,count+1);}else{countMap.put(countRecordType,1);}totalCount++;}for(type in countMap.keySet()){double count=countMap.get(type);if(count>0){resultMap.put(type,Math.round((count*100)/totalCount));}else{resultMap.put(type,0);}}for(type in resultMap.keySet()){def waitingRecord=['title':nameRecord[type],'value':resultMap.containsKey(type)?resultMap.get(type):0];waitingList.add(waitingRecord);}return waitingList;"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

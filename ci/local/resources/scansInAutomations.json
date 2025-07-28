@@ -1,0 +1,115 @@
+{
+    "widget": {
+      "id": "s4",
+      "title": "Scans In Automations",
+      "content": [
+        {
+          "header": [
+            {
+              "title": "Total Pipeline Runs",
+              "query_key": "scansInAutomationsQuery",
+              "spec_key": "totalPipelineRunsHeaderSpec"
+            }
+          ],
+          "section": [
+            {
+              "type": 4,
+              "title": "Runs with scans",
+              "show_legends": true,
+              "color_scheme": [
+                {
+                   "color0": "#9FB6C1",
+                   "color1": "#577688"
+                 },
+                 {
+                   "color0": "#9FB6C1",
+                   "color1": "#577688"
+                 },
+                 {
+                   "color0": "#9FB6C1",
+                   "color1": "#577688"
+                 },
+                 {
+                   "color0": "#9FB6C1",
+                   "color1": "#577688"
+                 }
+ 
+               ],
+              "query_key": "scansInAutomationsQuery",
+              "spec_key": "scansInAutomationsChartSpec"
+            }
+          ]
+        }
+      ]
+    },
+    "queries": {
+      "scansInAutomationsQuery": {
+        "alias": "scan_results",
+        "query": {
+          "size": 0,
+          "query": {
+			"bool": {
+			  "filter": [
+				{
+				  "range": {
+					"timestamp": {
+					  "gte": "{{.startDate}}",
+					  "lte": "{{.endDate}}",
+					  "format": "yyyy-MM-dd HH:mm:ss",
+            "time_zone":"{{.timeZone}}"
+					}
+				  }
+				},
+				{
+				  "term": {
+					"org_id": "{{.orgId}}"
+				  }
+				}
+			  ]
+			}
+		  },
+          "aggs":{
+            "scanner_type_count":{
+                "terms":{
+                    "field":"scanner_type"
+                }
+            }
+        }
+        }
+      }
+    },
+    "specs": {
+      "totalPipelineRunsHeaderSpec": [
+        {
+          "operation": "shift",
+          "spec": {
+            "hits": {
+              "total": {
+                "value": "value"
+              }
+            }
+          }
+        }
+          ]
+      ,
+      "scansInAutomationsChartSpec": [
+        {
+          "operation": "shift",
+          "spec": {
+            "aggregations": {
+              "scanner_type_count": {
+                "buckets": {
+                  "*": {
+                    "key": "[&1].title",
+                    "doc_count": "[&1].value"
+                  }
+                }
+              }
+            }
+          }
+              }
+                ]
+      
+      
+    }
+  }

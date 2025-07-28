@@ -1,0 +1,110 @@
+{
+  "definition": {
+    "id": "work-wait-time-compare",
+    "title": "Work wait time",
+    "sub_title": "Comparison",
+    "breadCrumbTitle": "{{.orgName}}",
+    "post_process_function_name": "work wait time component comparison",
+    "column_details": {
+      "column1": "Name",
+      "column2": "Percentage %"
+    },
+    "header_field": "totalValue",
+    "compare_common_section_details": {
+      "type": 2,
+      "show_legends": false,
+      "is_component_compare": true,
+      "orientation": 0,
+      "append_unit": "%",
+      "tooltip_formatter": 1,
+      "color_scheme": [
+        {
+          "color0": "#E19090",
+          "color1": "#DE3838"
+        },
+        {
+          "color0": "#62B0FF",
+          "color1": "#1C67FF"
+        },
+        {
+          "color0": "#E2C2A4",
+          "color1": "#E78730"
+        },
+        {
+          "color0": "#9FB6C1",
+          "color1": "#577688"
+        }
+      ],
+      "light_color_scheme": [
+        {
+          "color0": "#FF9E9C",
+          "color1": "#DE4643"
+        },
+        {
+          "color0": "#38B3FB",
+          "color1": "#047ED0"
+        },
+        {
+          "color0": "#FFD3AA",
+          "color1": "#E8A263"
+        },
+        {
+          "color0": "#AFBFC6",
+          "color1": "#7692A3"
+        }
+      ]
+    }
+  },
+  "queries": {
+    "flowWaitTimeChart": {
+      "alias": "flow_metrics",
+      "query": {
+        "size": 0,
+        "query": {
+          "bool": {
+            "filter": [
+              {
+                "range": {
+                  "completed_at": {
+                    "gte": "{{.startDate}}",
+                    "lte": "{{.endDate}}",
+                    "format": "yyyy-MM-dd HH:mm:ss",
+                    "time_zone": "{{.timeZone}}"
+                  }
+                }
+              },
+              {
+                "term": {
+                  "org_id": "{{.orgId}}"
+                }
+              },
+              {
+                "term": {
+                  "deleted": "false"
+                }
+              }
+            ]
+          }
+        },
+        "aggs": {
+          "work_wait_time_component_comparison": {
+            "terms": {
+              "field": "component_id",
+              "size": 10000
+            },
+            "aggs": {
+              "flow_efficiency_count": {
+                "scripted_metric": {
+                  "init_script": "state.statusMap = [:];",
+                  "map_script": "def map=state.statusMap;def key=doc.automation_id.value+'_'+doc.component_id.value+'_'+doc.flow_item.value+'_'+doc.issue_key.value+'_'+doc.run_id.value+'_'+doc.org_id.value;def v=['updatedAt':doc['updated_at'].getValue().toEpochSecond()*1000,'automation_id':doc.automation_id.value,'component_id':doc.component_id.value,'flow_item':doc.flow_item.value,'run_id':doc.run_id.value,'org_id':doc.org_id.value,'issue_key':doc.issue_key.value,'flow_time':doc.flow_time.value,'waiting_time':doc.waiting_time.value];map.put(key,v);",
+                  "combine_script": "return state.statusMap;",
+                  "reduce_script": "def statusMap=new HashMap();def waitingTimeMap=new HashMap();def flowTimeMap=new HashMap();def flowEfficiencyMap=new HashMap();def resultMap=new HashMap();def tempMap=new HashMap();tempMap.put('waitingTime',0);tempMap.put('flowTime',0);resultMap.put('FEATURE',tempMap);resultMap.put('DEFECT',tempMap);resultMap.put('RISK',tempMap);resultMap.put('TECH_DEBT',tempMap);for(a in states){if(a!=null){for(i in a.keySet()){def record=a.get(i);def key=record.issue_key;if(statusMap.containsKey(key)){def lastRecord=statusMap.get(key);if(lastRecord.updatedAt<record.updatedAt){statusMap.put(key,record);}}else{statusMap.put(key,record);}}}}for(type in statusMap.keySet()){def flowItemType=statusMap.get(type).flow_item;if(flowTimeMap.containsKey(flowItemType)){double totalFlowTime=flowTimeMap.get(flowItemType);double flowTime=statusMap.get(type).flow_time;flowTimeMap.put(flowItemType,totalFlowTime+flowTime);}else{double flowTime=statusMap.get(type).flow_time;flowTimeMap.put(flowItemType,flowTime);}if(waitingTimeMap.containsKey(flowItemType)){double totalWaitingTime=waitingTimeMap.get(flowItemType);double waitingTime=statusMap.get(type).waiting_time;waitingTimeMap.put(flowItemType,totalWaitingTime+waitingTime);}else{double waitingTime=statusMap.get(type).waiting_time;waitingTimeMap.put(flowItemType,waitingTime);}}for(type in waitingTimeMap.keySet()){def count=waitingTimeMap.get(type);def detailsMap=new HashMap();detailsMap.put('waitingTime',waitingTimeMap.get(type));detailsMap.put('flowTime',flowTimeMap.get(type));resultMap.put(type,detailsMap);}return resultMap;"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

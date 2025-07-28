@@ -1,0 +1,66 @@
+{
+    "widget": {
+        "id": "cs6",
+        "title": "Duplications",
+        "description": "",
+        "content": [
+            {
+                "header": [
+                    {
+                        "title": "Duplicated line density",
+                        "description": "Duplicated line density",
+                        "query_key": "",
+                        "past_duration_query_key": "",
+                        "spec_key": "",
+                        "type": "",
+                        "function_name": "Duplication Header",
+                        "drill_down": null
+                    }
+                ],
+                "section": [
+                    {
+                        "type": 4,
+                        "show_legends": false,
+                        "color_scheme": [
+                            {
+                                "color0": "#8BA9B8",
+                                "color1": "#5C7588"
+                            }
+                        ],
+                        "query_key": "",
+                        "spec_key": "",
+                        "function_name": "Duplication  Section1",
+                        "title": "",
+                        "info": null,
+                        "data_type": 0,
+                        "category_type": "",
+                        "orientation": 0,
+                        "drill_down": null
+                    },
+                    {
+                        "type": 13,
+                        "show_legends": false,
+                        "color_scheme": null,
+                        "query_key": "",
+                        "spec_key": "",
+                        "function_name": "Duplication  Section2",
+                        "title": "",
+                        "info": null,
+                        "data_type": 0,
+                        "category_type": "",
+                        "orientation": 0,
+                        "drill_down": null
+                    }
+                ],
+                "footer": []
+            }
+        ],
+        "pagination": false
+    },
+    "functions": [
+       
+        "Duplication Header",
+        "Duplication  Section1",
+        "Duplication  Section2"
+    ]
+}

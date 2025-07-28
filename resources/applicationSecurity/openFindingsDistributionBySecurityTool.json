@@ -1,0 +1,146 @@
+{
+  "widget": {
+    "id": "aso10",
+    "title": "Open findings distribution by security tool",
+    "description": "",
+    "enable_components_compare": false,
+    "components_compare_id": "open-findings-distribution-by-security-tool-compare",
+    "message": "",
+    "content": [
+      {
+        "header": [],
+        "section": [
+          {
+            "title": "",
+            "info": null,
+            "type": 10,
+            "column_type": "open-findings-distribution-by-security-tool",
+            "category_type": "",
+            "orientation": 0,
+            "data_type": 0,
+            "show_legends": true,
+            "color_scheme": null,
+            "light_color_scheme": null,
+            "legends_data": [
+              {
+                "title": "Very high",
+                "color": "#EA4F54"
+              },
+              {
+                "title": "High",
+                "color": "#FE9D33"
+              },
+              {
+                "title": "Medium",
+                "color": "#FCE44E"
+              },
+              {
+                "title": "Low",
+                "color": "#738E9D"
+              }
+            ],
+            "query_key": "",
+            "spec_key": "openFindingsDistributionBySecurityToolSpec",
+            "function_name": "",
+            "drill_down": null,
+            "enable_post_transformation_processing": false,
+            "post_process_function_name": "open findings distribution by security tool",
+            "show_pagination": false
+          }
+        ],
+        "footer": []
+      }
+    ],
+    "pagination": false
+  },
+  "queries": {
+    "openFindingsDistributionBySecurityToolApplication": {
+      "alias": "cb_security_findings",
+      "query": {
+        "size": 0,
+        "query": {
+          "bool": {
+            "filter": [
+              {
+                "term": {
+                  "org_id": "{{.orgId}}"
+                }
+              },
+              {
+                "term": {
+                  "profile_group_type": "application_environment"
+                }
+              },
+              {
+                "term": {
+                  "environment_id": "{{.targetEnv}}"
+                }
+              },
+              {
+                "terms": {
+                  "remediation_status": [
+                    "OPEN",
+                    "IN_PROGRESS"
+                  ]
+                }
+              },
+              {
+                "bool": {
+                  "should": [
+                    {
+                      "term": {
+                        "is_stale": false
+                      }
+                    },
+                    {
+                      "bool": {
+                        "must_not": {
+                          "exists": {
+                            "field": "is_stale"
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "minimum_should_match": 1
+                }
+              }
+            ]
+          }
+        },
+        "aggs": {
+          "tool_id": {
+            "terms": {
+              "field": "tool_id",
+              "size": 100
+            },
+            "aggs": {
+              "severity": {
+                "terms": {
+                  "field": "severity",
+                  "size": 10
+                },
+                "aggs": {
+                  "tracking_id": {
+                    "terms": {
+                      "script": "doc['finding_code'].value + '_' + doc['tracking_id'].value",
+                      "size": 10000
+                    },
+                    "aggs": {
+                      "tool_display_name": {
+                        "terms": {
+                          "field": "tool_display_name",
+                          "size": 1000
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

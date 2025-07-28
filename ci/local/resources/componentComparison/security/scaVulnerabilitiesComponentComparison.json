@@ -1,0 +1,121 @@
+{
+    "definition": {
+        "id": "vulnerabilities-scanner-type-SCA-compare",
+        "title": "Scanner type - SCA",
+        "sub_title": "Comparison",
+        "breadCrumbTitle": "{{.orgName}}",
+        "post_process_function_name": "sca vulnerabilities scannner component comparison",
+        "column_details": {
+            "column1": "Organization name",
+            "column2": "Count/severity"
+        },
+        "header_field": "totalValue",
+        "compare_common_section_details": {
+            "type": 2,
+            "show_legends": false,
+            "is_component_compare": true,
+            "orientation": 0,
+            "append_unit": " ",
+            "tooltip_formatter": 1,
+            "color_scheme": [
+              {
+                "color0": "#EE2E2B",
+                "color1": "#FFB4B2"
+              },
+              {
+                "color0": "#FF8205",
+                "color1": "#FFDBA6"
+              },
+              {
+                "color0": "#FDC412",
+                "color1": "#FFEC89"
+              },
+              {
+                "color0": "#547386",
+                "color1": "#9FB6C1"
+              }
+            ],
+
+      "light_color_scheme": [
+              {
+                "color0": "#FFB4B2",
+                "color1": "#EF302C"
+              },
+              {
+                "color0": "#FF8205",
+                "color1": "#FCC26C"
+              },
+              {
+                "color0": "#FEC513",
+                "color1": "#FFEC89"
+              },
+              {
+                "color0": "#759AB1",
+                "color1": "#B2CEE0"
+              }
+            ]
+        }    
+    },
+    "queries":{
+        "scaVulnerabilityScannerChart": {
+            "alias": "scan_results",
+            "query": {
+              "_source": false,
+              "query": {
+                "bool": {
+                  "filter": [
+                    {
+                      "range": {
+                        "scan_time": {
+                          "gte": "{{.startDate}}",
+                          "lte": "{{.endDate}}",
+                          "format": "yyyy-MM-dd HH:mm:ss",
+                          "time_zone":"{{.timeZone}}"
+                        }
+                      }
+                    },
+                    {
+                      "term": {
+                        "org_id": "{{.orgId}}"
+                      }
+                    },
+                    {
+                      "terms": {
+                        "severity": [
+                          "MEDIUM",
+                          "HIGH",
+                          "LOW",
+                          "VERY_HIGH"
+                        ]
+                      }
+                    },
+                    {
+                      "exists": {
+                        "field": "date_of_discovery"
+                      }
+                    }
+                  ]
+                }
+              },
+              "aggs": {
+                "vul_by_scanner_type_component_comparison": {
+                  "terms": {
+                    "field": "component_id",
+                    "size": 10000
+                  },
+                  "aggs": {
+                    "vulByScannerTypeCounts": {
+                      "scripted_metric": {
+                        "init_script": "state.statusMap = [:];",
+                        "map_script": "def map = state.statusMap;def key = doc.org_id.value + '_' + doc.code.value + '_' + doc.scanner_type.value + '_' + doc.severity.value;def v = ['timestamp':doc['timestamp'].getValue().toEpochSecond() * 1000, 'scannerType':(doc.scanner_type.value), 'severity':doc.severity.value, 'code':doc.code.value, 'branch':doc.github_branch.value, 'org_id':doc.org_id.value, 'component_id':doc.component_id.value];map.put(key, v);",
+                        "combine_script": "return state.statusMap;",
+                        "reduce_script": "int count = 0;def result = [:];def countMap = new HashMap();def scannerTypeCountMap = null;def resultMap = new HashMap();def statusMap = new HashMap();for (a in states){if (a != null){for (i in a.keySet()){def record = a.get(i);def key = record.org_id + '_'+ record.code + '_' + record.scannerType + '_' + record.severity;statusMap.put(key, record);}}}def item = statusMap.keySet();for (i in item){def record = statusMap.get(i);if (countMap.containsKey(record.severity)){scannerTypeCountMap = countMap.get(record.severity);if (scannerTypeCountMap.containsKey(record.scannerType)){count = scannerTypeCountMap.get(record.scannerType);count = count + 1;scannerTypeCountMap.put(record.scannerType, count);} else{scannerTypeCountMap.put(record.scannerType, 1);}countMap.put(record.severity, scannerTypeCountMap);} else{scannerTypeCountMap = new TreeMap();scannerTypeCountMap.put(record.scannerType, 1);countMap.put(record.severity, scannerTypeCountMap);}}def scannerTypeList = ['SAST', 'DAST','Container', 'SCA'];for (key in countMap.keySet()){def scannerTypeMap = countMap.get(key);def countList = new ArrayList();for (typeKey in scannerTypeList){def count1 = scannerTypeMap.containsKey(typeKey) ? scannerTypeMap.get(typeKey):0;def record = ['x':typeKey, 'y':count1];countList.add(record);}resultMap.put(key, countList)}return resultMap;"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+        }
+    }
+} 

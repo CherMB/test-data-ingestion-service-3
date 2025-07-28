@@ -1,0 +1,128 @@
+{
+    "widget": {
+        "id": "s8",
+        "title": "SLA status overview",
+        "description": "",
+        "content": [
+            {
+                "section": [
+                    {
+                        "title": "Open vulnerabilities",
+                        "type": 4,
+                        "show_legends": false,
+                        "color_scheme": [
+                            {
+                                "color0": "#9FB6C1",
+                                "color1": "#577688"
+                            },
+                            {
+                                "color0": "#9FB6C1",
+                                "color1": "#577688"
+                            },
+                            {
+                                "color0": "#9FB6C1",
+                                "color1": "#577688"
+                            }
+                        ],
+                        "light_color_scheme": [
+                            {
+                                "color0": "#B3CFE1",
+                                "color1": "#759AB1"
+                            }
+                        ],
+                        "post_process_function_name": "sla status overview",
+                        "spec_key": "slaStatusOverviewOpenSpec",
+                        "drill_down": {
+                            "report_id": "security-SLA-status-overview-open",
+                            "report_title": "SLA status overview - Open",
+                            "report_type": "sla"
+                        }
+                    },
+                    {
+                        "title": "Resolved vulnerabilities",
+                        "type": 4,
+                        "show_legends": false,
+                        "color_scheme": [
+                            {
+                                "color0": "#9FB6C1",
+                                "color1": "#577688"
+                            },
+                            {
+                                "color0": "#9FB6C1",
+                                "color1": "#577688"
+                            }
+                        ],
+                        "light_color_scheme": [
+                            {
+                                "color0": "#B3CFE1",
+                                "color1": "#759AB1"
+                            }
+                        ],
+                        "post_process_function_name": "sla status overview",
+                        "spec_key": "slaStatusOverviewClosedSpec",
+                        "drill_down": {
+                            "report_id": "security-SLA-status-overview-closed",
+                            "report_title": "SLA status overview - Resolved",
+                            "report_type": "sla"
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    "queries": {
+        "slaStatusOverview": {
+            "alias": "scan_results",
+            "query": {
+                "size": 0,
+                "_source": false,
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {
+                                "range": {
+                                    "scan_time": {
+                                        "gte": "{{.startDate}}",
+                                        "lte": "{{.endDate}}",
+                                        "format": "yyyy-MM-dd HH:mm:ss",
+                                        "time_zone":"{{.timeZone}}"
+                                    }
+                                }
+                            },
+                            {
+                                "term": {
+                                    "org_id": "{{.orgId}}"
+                                }
+                            },
+                            {
+                                "exists": {
+                                    "field": "date_of_discovery"
+                                }
+                            },
+                            {
+                                "terms": {
+                                    "severity": [
+                                        "MEDIUM",
+                                        "HIGH",
+                                        "LOW",
+                                        "VERY_HIGH"
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                "aggs": {
+                    "slaStatusOverview": {
+                        "scripted_metric": {
+                            "init_script": "state.statusMap = [:];state.slaRules=['breached':3,'at_risk':2,'on_track':1];",
+                            "map_script": "def map = state.statusMap;def key = doc.org_id.value + '_' + doc.component_id.value + '_' +doc.github_branch.value +'_'+ doc.code.value + '_' + doc['timestamp'].getValue().toEpochSecond() * 1000;def v = ['timestamp':doc['timestamp'].getValue().toEpochSecond() * 1000, 'code':doc.code.value, 'bug_status':doc.bug_status.value,'branch':doc.github_branch.value, 'severity':doc.severity.value, 'failure_count':doc.failure_count.value,'org_id':doc.org_id.value,'component_id':doc.component_id.value,'data_of_discovery':doc.date_of_discovery.value,'scan_time':doc.scan_time.value];map.put(key, v);",
+                            "combine_script": "def stateMap =new HashMap();stateMap.put('rules',state.slaRules);stateMap.put('data',state.statusMap);return stateMap;",
+                            "reduce_script": "Instant Currentdate=Instant.ofEpochMilli(new Date().getTime());def statusMap=new HashMap();def openSlaCountMap=new HashMap();def closedSlaCountMap=new HashMap();def openResultList=new ArrayList();def closeResultList=new ArrayList();def resultMap=new HashMap();def rules=null;def openSlaNames=['Breached','At risk','On track'];def closeSlaNames=['Breached','Within SLA'];for(a in states){if(a!=null){for(i in a.keySet()){if(i=='rules'){rules=a.get(i);}else if(i=='data'){def data=a.get(i);for(j in data.keySet()){def record=data.get(j);def key=record.org_id+'_'+record.component_id+'_'+record.branch+'_'+record.code;if(statusMap.containsKey(key)){def lastRecord=statusMap.get(key);if(lastRecord.timestamp<record.timestamp){statusMap.put(key,record);}}else{statusMap.put(key,record);}}}}}}if(statusMap.size()>0){for(uniqueKey in statusMap.keySet()){def vul=statusMap.get(uniqueKey);Instant Startdate=Instant.ofEpochMilli(vul.data_of_discovery.getMillis());Instant ScanDate=Instant.ofEpochMilli(vul.scan_time.getMillis());def diffAge=ChronoUnit.DAYS.between(Startdate,vul.bug_status!='Resolved'?Currentdate:ScanDate);vul.age=diffAge;if(vul.age>=rules.breached){vul.sla='Breached'}else if(vul.age>=rules.at_risk&&vul.bug_status!='Resolved'){vul.sla='At risk'}else{if(vul.bug_status=='Resolved'){vul.sla='Within SLA'}else{vul.sla='On track'}}if(vul.bug_status=='Open'||vul.bug_status=='Reopened'){if(openSlaCountMap.containsKey(vul.sla)){def slaCount=openSlaCountMap.get(vul.sla);openSlaCountMap.put(vul.sla,slaCount+1);}else{openSlaCountMap.put(vul.sla,1);}}else if(vul.bug_status=='Resolved'){if(closedSlaCountMap.containsKey(vul.sla)){def slaCount=closedSlaCountMap.get(vul.sla);closedSlaCountMap.put(vul.sla,slaCount+1);}else{closedSlaCountMap.put(vul.sla,1);}}}}for(open in openSlaNames){def openRecord=['x':open,'y':openSlaCountMap.containsKey(open)?openSlaCountMap.get(open):0];openResultList.add(openRecord);}for(close in closeSlaNames){def closeRecord=['x':close,'y':closedSlaCountMap.containsKey(close)?closedSlaCountMap.get(close):0];closeResultList.add(closeRecord);}resultMap.put('openSlaCounts',openResultList);resultMap.put('closedSlaCounts',closeResultList);resultMap.put('openSlaKey','Open vulnerabilities');resultMap.put('closeSlaKey','Resolved vulnerabilites');return resultMap;"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

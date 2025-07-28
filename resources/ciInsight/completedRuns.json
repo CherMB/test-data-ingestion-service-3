@@ -1,0 +1,13 @@
+{
+    "widget": {
+        "id": "ci5",
+        "title": "Completed runs",
+        "description": "Completed runs for ci insights tool.",
+        "data": {
+            "function_name": "Insight Completed Runs Widget"
+        }
+    },
+    "functions": [
+        "Insight Completed Runs Widget"
+    ]
+}

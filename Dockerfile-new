@@ -1,0 +1,12 @@
+FROM gcr.io/distroless/static:nonroot
+
+LABEL maintainer=CB-Platform \
+    email=engineering@cb-platform.com
+
+WORKDIR /
+
+COPY resources /resources
+
+COPY reports-service /
+
+ENTRYPOINT ["/reports-service"]
