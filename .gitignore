@@ -1,28 +1,4 @@
-# Binaries for programs and plugins
- __debug_bin
+*.rdb
+testdata/*
+.idea/
 .DS_Store
-proto/vsm/report/.DS_Store
-reports-service
-
-# IDEs and editors
-/.idea/
-/.history/
-/.vscode/
-
-/build/
-/obj/
-/tmp/
-/temp/
-/vendor/
-/proto/
-/api/
-init.go
-
-# Local resources
-/ci/.DS_Store
-/ci/local/.DS_Store
-/resources/.DS_Store
-
-coverprofile.out
-cover.out
-coverage.out

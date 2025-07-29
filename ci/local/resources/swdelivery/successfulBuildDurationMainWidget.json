@@ -1,9 +1,0 @@
-{
-  "widget": {
-    "id": "e8",
-    "title": "Successful build duration",
-    "descripition": "Track the variation in successful build duration per component for the selected time frame.",
-    "pagination" : true,
-    "content": []
-  }
-}

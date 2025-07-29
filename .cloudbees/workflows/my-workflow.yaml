@@ -1,0 +1,20 @@
+apiVersion: automation.cloudbees.io/v1alpha1
+kind: workflow
+name: My workflow
+on:
+  push:
+    branches:
+      - "**"
+  workflow_dispatch:
+jobs:
+  build:
+    steps:
+      - uses: docker://golang:1.20.3-alpine3.17
+        name: Say hello
+        shell: sh
+        run: |
+          echo "hello world"
+    #   - uses: cloudbees-io/sonarqube-bundled-sast-scan-code@v2
+    #     name: SonarQube Scan
+    #     with:
+    #       language: LANGUAGE_GO
