@@ -21,15 +21,17 @@ jobs:
           # Build your Go application or run your build scripts here
           echo "Build successful"
       
-  deploy:
+  deploy-east-1:
+    environment: preprod-us-east-1
     steps:
-      - id: deploy-image
+      - id: deploy-step
         kind: deploy
-        env: staging
         name: Deploy Go Application
-        uses: docker://golang:1.20.3-alpine3.17
+        uses: docker://alpine:3.17
         shell: sh
         run: |
-          echo "Deploying Go application"
-          # Simulate deployment (e.g., copy files, run deployment scripts, etc.)
-          echo "Deployed successfully"
+          echo "Deploying Go application to preprod-us-east-1"
+          echo "hello world" # You can add actual deployment commands here
+          # Simulate deployment (e.g., copy files, push Docker image, etc.)
+          echo "Deployed successfully to preprod-us-east-1"
+
