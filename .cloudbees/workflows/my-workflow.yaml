@@ -4,7 +4,7 @@ name: My workflow
 on:
   push:
     branches:
-      - "branchtest1"
+      - "branchtest2"
   workflow_dispatch:
 jobs:
   build:
