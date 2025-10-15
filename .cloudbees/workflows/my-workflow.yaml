@@ -35,3 +35,4 @@ jobs:
           # Simulate deployment (e.g., copy files, push Docker image, etc.)
           echo "Deployed successfully to preprod-us-east-1"
 
+ 
