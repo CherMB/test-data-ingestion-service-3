@@ -24,14 +24,32 @@ jobs:
   deploy-east-1:
     environment: preprod-us-east-1
     steps:
-      - id: deploy-step
-        kind: deploy
-        name: Deploy Go Application
-        uses: docker://alpine:3.17
-        shell: sh
+      - id: deploy-step 
+        kind: deploy 
+        name: Deploy Go Application 
+        uses: docker://alpine:3.17 
+        shell: sh 
         run: |
           echo "Deploying Go application to preprod-us-east-1"
           echo "hello world" # You can add actual deployment commands here
           # Simulate deployment (e.g., copy files, push Docker image, etc.)
-          echo "Deployed successfully to preprod-us-east-1"
+          echo "Deployed successfully to preprod-us-east-1" 
+      
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
