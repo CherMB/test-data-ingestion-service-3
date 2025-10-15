@@ -9,12 +9,26 @@ on:
 jobs:
   build:
     steps:
-      - uses: docker://golang:1.20.3-alpine3.17
-        name: Say hello
+      - id: build-image
+        kind: build
+        name: Build Go Application
+        uses: docker://golang:1.20.3-alpine3.17
         shell: sh
         run: |
-          echo "hello world"
-    #   - uses: cloudbees-io/sonarqube-bundled-sast-scan-code@v2
-    #     name: SonarQube Scan
-    #     with:
-    #       language: LANGUAGE_GO
+          echo "Building Go application"
+          echo "hello world" > hello.txt
+          # Simulate building a Go app
+          # Build your Go application or run your build scripts here
+          echo "Build successful"
+      
+  deploy:
+    steps:
+      - id: deploy-image
+        kind: deploy
+        name: Deploy Go Application
+        uses: docker://golang:1.20.3-alpine3.17
+        shell: sh
+        run: |
+          echo "Deploying Go application"
+          # Simulate deployment (e.g., copy files, run deployment scripts, etc.)
+          echo "Deployed successfully"
