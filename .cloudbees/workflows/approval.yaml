@@ -14,7 +14,7 @@ jobs:
       approvers: cbibin@cloudbees.com
       notifyAllEligibleUsers: false
     timeout-minutes: 10
-    delegates: cloudbees-io/manual-approval/custom-job.yml@v1
+    # delegates: cloudbees-io/manual-approval/custom-job.yml@v1
  
   build:
     needs:
