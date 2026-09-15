@@ -20,38 +20,28 @@ jobs:
           # Simulate building a Go app
           # Build your Go application or run your build scripts here
           echo "Build successful"
-      
+
   deploy-east-1:
     environment: preprod-us-east-1
     steps:
-      - id: deploy-step 
-        kind: deploy 
-        name: Deploy Go Application 
-        uses: docker://alpine:3.17 
-        shell: sh 
+      - id: deploy-step
+        kind: deploy
+        name: Deploy Go Application
+        uses: docker://alpine:3.17
+        shell: sh
         run: |
           echo "Deploying Go application to preprod-us-east-1"
           echo "hello world" # You can add actual deployment commands here
           # Simulate deployment (e.g., copy files, push Docker image, etc.)
-          echo "Deployed successfully to preprod-us-east-1" 
-      
+          echo "Deployed successfully to preprod-us-east-1"
 
-
- 
- 
-
- 
-
-
-
-
-
-
-
-
-
-
-
-
-   
-       
+  register-deployment:
+    if: ${{ cloudbees.scm.branch == 'main' }}
+    needs:
+      - deploy-east-1
+    steps:
+      - name: register deployed artifact
+        uses: cloudbees-io/register-deployed-artifact@v2
+        with:
+          artifact-id: "test-artifact-id-00001"
+          target-environment: "TestAmp"
