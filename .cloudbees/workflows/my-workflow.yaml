@@ -43,5 +43,5 @@ jobs:
       - name: register deployed artifact
         uses: cloudbees-io/register-deployed-artifact@v2
         with:
-          artifact-id: "test-artifact-id-00001"
+          artifact-id: "ae3d21a9-8288-488f-b460-be4d8191caf7"
           target-environment: "TestAmp"
