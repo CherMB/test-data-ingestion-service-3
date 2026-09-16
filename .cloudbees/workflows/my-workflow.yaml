@@ -44,4 +44,4 @@ jobs:
         uses: cloudbees-io/register-deployed-artifact@v2
         with:
           artifact-id: "6b804472-550d-4a65-8f09-87d8ff9257cd"
-          target-environment: "TestAmp"
+          target-environment: "staging"
