@@ -21,7 +21,7 @@ jobs:
           # Build your Go application or run your build scripts here
           echo "Build successful"
 
-  deploy-east-1:
+  deploy-staging:
     environment: staging
     steps:
       - id: deploy-step
@@ -38,7 +38,7 @@ jobs:
   register-deployment:
     if: ${{ cloudbees.scm.branch == 'main' }}
     needs:
-      - deploy-east-1
+      - deploy-staging
     steps:
       - name: register deployed artifact
         uses: cloudbees-io/register-deployed-artifact@v2
