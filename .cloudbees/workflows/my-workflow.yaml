@@ -19,8 +19,8 @@ jobs:
           echo "hello world" > hello.txt
           # Simulate building a Go app
           # Build your Go application or run your build scripts here
-          # echo "Build successful"
-          echo "Build failed"
+          echo "Build successful"
+          
           
 
   deploy-staging:
@@ -35,7 +35,7 @@ jobs:
           echo "Deploying Go application to staging"
           echo "hello world" # You can add actual deployment commands here
           # Simulate deployment (e.g., copy files, push Docker image, etc.)
-          exit 1
+          # exit 1
           echo "Deployed successfully to staging"
 
   register-deployment:
