@@ -19,7 +19,9 @@ jobs:
           echo "hello world" > hello.txt
           # Simulate building a Go app
           # Build your Go application or run your build scripts here
-          echo "Build successful"
+          # echo "Build successful"
+          echo "Build failed"
+          exit 1
 
   deploy-staging:
     environment: staging
